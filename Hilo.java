@@ -33,7 +33,7 @@ public class Hilo extends Thread {
       return datos;
     }
 
-    public void escribeSocket (Socket sck, String datos){
+    public void escribeSck(Socket sck, String datos){
 		try
 		{
 			OutputStream os = sck.getOutputStream();
