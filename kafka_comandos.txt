@@ -1,0 +1,31 @@
+- Arrancamos Zookeeper
+	zookeeper-server-start.sh ~/Desktop/UA/SD/kafka_2.13-3.5.1/config/zookeeper.properties
+
+- Arrancamos el bróker de Kafka
+	kafka-server-start.sh ~/Desktop/UA/SD/kafka_2.13-3.5.1/config/server.properties
+
+- Creamos un topic
+	~/Desktop/UA/SD/kafka_2.13-3.5.1/bin/kafka-topics.sh – zookeeper localhost:2181 --create --topic nombre_topic --replication-factor 1 --partitions 2 --bootstrap-server localhost:9092
+
+- Arrancamos un Producer
+	kafka-console-producer.sh --topic nombre_topic --bootstrap-server localhost:9092
+	- escribo primera linea mensaje
+	- escribo segunda linea mensaje
+	- Ctrl+C (finalizar)
+
+- Arrancamos el Consumer
+	kafka-console-consumer.sh --topic nombre_topic --from-beginning --botstrap-sever localhost:9092
+	- se deben visualizar los mensajes -
+
+- Arrancar varios broker de kafka
+	- kafka-server-start.sh ~/Desktop/UA/SD/kafka_2.13-3.1.0/config/server.properties
+	- kafka-server-start.sh ~/Desktop/UA/SD/kafka_2.13-3.1.0/config/server_2.properties
+	- kafka-server-start.sh ~/Desktop/UA/SD/kafka_2.13-3.1.0/config/server_3.properties
+
+- Para ello en los ficheros "server.properties" debemos modificar los parametros:
+	- broker.id=0,1,2				#identificador unico del broker
+	- listeners=PLAINTEXT://:9092,9093,9094		#puerto donde escucha el broker
+	- log.dirs=/tmp/kafka-logs_1			#logs del broker diferentes para cada uno
+
+- Crear un topic
+	~/Desktop/UA/SD/kafka_2.13-3.1.0/bin/kafka-topis.sh – zookeeper localhost:2181 --create --topic nombre_topic --replication-factor 1 --partitions 2 --bootstrap-server localhost:9092
