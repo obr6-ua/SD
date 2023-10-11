@@ -30,7 +30,7 @@ public class consumidor {
 
 			while (true) {
 
-				ConsumerRecords<String, String> mensajes = consumidor.poll(Duration.ofMillis(400));
+				ConsumerRecords<String, String> mensajes = consumidor.poll(Duration.ofMillis(0));
 				// System.out.println ("paso por aqui despues de consumir");
 				// System.out.println (mensajes.count());
 				for (ConsumerRecord<String, String> mensaje : mensajes) {
