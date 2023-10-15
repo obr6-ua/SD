@@ -1,47 +1,73 @@
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.PrintWriter;
-import java.net.ServerSocket;
-import java.net.Socket;
+import java.awt.*;
+import java.awt.datatransfer.*;
+import java.io.*;
+import java.net.*;
 
-public class AD_Registry{
+public class AD_Registry {
     public static void main(String[] args) {
-        if (args.length != 1) {
-            System.err.println("Uso: java Server <puerto>");
-            System.exit(1);
+        if (args.length != 3) {
+            System.out.println("Uso: java AD_Registry <ip_servidor> <puerto_cliente> <puerto_bbdd>");
+            return;
         }
 
-        int portNumber = Integer.parseInt(args[0]);
+        String serverIp = args[0];
+        int clientPort = Integer.parseInt(args[1]);
+        int dbPort = Integer.parseInt(args[2]);
 
         try {
-            // Crear un socket de servidor en el puerto especificado
-            ServerSocket serverSocket = new ServerSocket(portNumber);
-            System.out.println("El servidor está escuchando en el puerto " + portNumber);
+            // Crea un servidor en el puerto de clientes
+            ServerSocket serverSocket = new ServerSocket(clientPort);
+            String text = "" + serverIp + " " + clientPort;
 
-            while (true) {
-                // Esperar a que un cliente se conecte
-                Socket clientSocket = serverSocket.accept();
-                System.out.println("Cliente conectado desde " + clientSocket.getInetAddress());
+            // Copiamos en la clipboard
+            Clipboard clipboard = Toolkit.getDefaultToolkit().getSystemClipboard();
+            StringSelection selection = new StringSelection(text);
+            clipboard.setContents(selection, null);
 
-                // Crear un lector de entrada para recibir datos del cliente
-                
+            //Mensajes por consola
+            System.out.println("***** Ip -> " + serverIp + ", Port -> " + clientPort + " *****");
+            System.out.println("");
+            System.out.println("");
+            System.out.println("*************************************************************");
+            System.out.println("********* IP y PUERTO  COPIADOS EN EL PORTAPAPELES **********");
+            System.out.println("*************************************************************");
+            System.out.println("");
+            System.out.println("");
+            System.out.println("*************************************************************");
+            System.out.println("***************     Esperando conexiones...   ***************");
+            System.out.println("*************************************************************");
 
-                BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
+            // Espera a que un cliente se conecte
+            Socket clientSocket = serverSocket.accept();
+            System.out.println("Dron conectado desde: " + clientSocket.getInetAddress());
 
-                // Crear un escritor de salida para enviar datos al cliente
-                PrintWriter out = new PrintWriter(clientSocket.getOutputStream(), true);
+            // Flujo de entrada desde el cliente
+            BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
 
-                // Leer el mensaje del cliente
-                String mensajeCliente = in.readLine();
-                System.out.println("Mensaje recibido del cliente: " + mensajeCliente);
+            // Flujo de salida hacia el cliente
+            PrintWriter out = new PrintWriter(clientSocket.getOutputStream(), true);
 
-                // Responder al cliente con "Hola"
-                out.println("Hola");
-
-                // Cerrar la conexión con el cliente
-                clientSocket.close();
+            // Lee mensajes del cliente y los envía de vuelta
+            String message;
+            while ((message = in.readLine()) != null) {
+                if (message.equals("1")) {
+                out.println("Dar de alta");
+            } else if (message.equals("alta")) {
+                // El cliente ha enviado la señal de "alta"
+                String alias = in.readLine();
+                // Realiza la lógica para dar de alta en la base de datos
+                // Luego, responde al cliente con la confirmación
+                out.println("Dron dado de alta: " + alias);
+            } else {
+                // Otros casos (2, 3, 4) pueden manejarse de manera similar
             }
+            }
+
+            // Cierra las conexiones
+            in.close();
+            out.close();
+            clientSocket.close();
+            serverSocket.close();
         } catch (IOException e) {
             e.printStackTrace();
         }
