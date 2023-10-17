@@ -29,23 +29,14 @@ public class AD_Drone {
                 printMenu();
                 int opcion = getOpcion(scanner);
 
-                // Envía la opción al servidor
-                out.println(opcion);
-
-                // Lee la respuesta del servidor
-                String serverResponse = in.readLine();
-                System.out.println("Respuesta del servidor: " + serverResponse);
-
                 switch (opcion) {
                     case 1:
-                        if (serverResponse.equals("Introduce el alias del nuevo dron: ")) {
                             // Dar de alta
                             String alias = getAlias(scanner);
                             // Envía el alias y la señal de "dar de alta" al servidor
                             out.println("alta"); // Señal para dar de alta
                             out.println(alias);
                             respuestaServer(in);
-                        }
                         break;
                     case 2:
                         // Editar perfil
