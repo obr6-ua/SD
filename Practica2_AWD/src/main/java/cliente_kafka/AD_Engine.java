@@ -105,16 +105,10 @@ class LeerXML {
 }
 
 class RegistroDrones {
-	private int id;
 	private int token;
 
-	RegistroDrones(int p_id, int p_token) {
-		id = p_id;
+	RegistroDrones(int p_token) {
 		token = p_token;
-	}
-
-	public int getId() {
-		return id;
 	}
 
 	public int getToken() {
@@ -261,22 +255,22 @@ public class AD_Engine {
 		String nombreArchivo = "drones.xml";
 		ArrayList<DatosDrones> datosDronesList = LeerXML.leerXML(nombreArchivo);
 
-		// 2. Sacamos de BBDD información sobre {id, token} de cada dron y lo guardamos
+		// 2. Sacamos de BBDD información sobre {token} de cada dron y lo guardamos
 
 		// Recepcion de tabla con la informacion de registro de todos los drones
 		do {
 			coleccion = database.getCollection("Registro");
-		} while (coleccion.countDocuments() < 20); // Solo se pueden registrar 20 drones
+		} while (coleccion.countDocuments() < KMAXDRONES); // Solo se pueden registrar 20 drones
 
 		try {
+			maxId = 0;
 			FindIterable<org.bson.Document> documents = coleccion.find();
 			for (org.bson.Document doc : documents) {
-				int id = doc.getInteger("id");
 				int token = doc.getInteger("token");
 
-				RegistroDrones dronDB = new RegistroDrones(id, token);
+				RegistroDrones dronDB = new RegistroDrones(token);
 				registro.add(dronDB);
-				maxId = id;
+				maxId++;
 			}
 		} catch (Exception e) {
 			System.out.println("Error: " + e.toString());
@@ -322,6 +316,7 @@ public class AD_Engine {
 		String mapaStr = matrixToStr(mapa);
 		try {
 			ProducerRecord<String, String> mensaje = new ProducerRecord<>(topic_productor, mapaStr);
+			productor.send(mensaje);
 		} catch (Exception e) {
 			System.out.println(e.toString());
 		} finally {
@@ -334,9 +329,8 @@ public class AD_Engine {
 				actualizarMapa(strToMatrix(mapaStr), msj.value());
 				mapaStr = matrixToStr(mapa);
 				ProducerRecord<String, String> mensajeP = new ProducerRecord<>(topic_productor, mapaStr);
+				productor.send(mensajeP);
 			}
-
-			// actualizo mapa
 		}
 	}
 }
