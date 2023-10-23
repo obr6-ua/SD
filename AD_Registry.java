@@ -1,3 +1,10 @@
+import com.mongodb.client.MongoClient;
+import com.mongodb.client.MongoClients;
+import com.mongodb.client.MongoCollection;
+import com.mongodb.client.MongoDatabase;
+import org.bson.Document;
+import org.bson.types.ObjectId;
+
 import java.awt.*;
 import java.awt.datatransfer.*;
 import java.io.*;
@@ -9,6 +16,11 @@ public class AD_Registry {
             System.out.println("Uso: java AD_Registry <ip_servidor> <puerto_cliente> <puerto_bbdd>");
             return;
         }
+
+        // Conexión a la base de datos MongoDB
+        MongoClient mongoClient = MongoClients.create("mongodb://localhost:27017");
+        MongoDatabase database = mongoClient.getDatabase("drones_db");
+        MongoCollection<Document> dronesCollection = database.getCollection("drones");
 
         String serverIp = args[0];
         int clientPort = Integer.parseInt(args[1]);
@@ -37,39 +49,43 @@ public class AD_Registry {
             System.out.println("***************     Esperando conexiones...   ***************");
             System.out.println("*************************************************************");
 
-            // Espera a que un cliente se conecte
-            Socket clientSocket = serverSocket.accept();
-            System.out.println("Dron conectado desde: " + clientSocket.getInetAddress());
+            
+            while (true) {
+                // Espera a que un cliente se conecte
+                Socket clientSocket = serverSocket.accept();
+                System.out.println("Dron conectado desde: " + clientSocket.getInetAddress());
 
-            // Flujo de entrada desde el cliente
-            BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
+                // Flujo de entrada desde el cliente
+                BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
 
-            // Flujo de salida hacia el cliente
-            PrintWriter out = new PrintWriter(clientSocket.getOutputStream(), true);
+                // Flujo de salida hacia el cliente
+                PrintWriter out = new PrintWriter(clientSocket.getOutputStream(), true);
 
-            // Lee mensajes del cliente y los envía de vuelta
-            String message;
-            while ((message = in.readLine()) != null) {
-                if (message.equals("1")) {
-                out.println("Dar de alta");
-            } else if (message.equals("alta")) {
-                // El cliente ha enviado la señal de "alta"
-                String alias = in.readLine();
-                // Realiza la lógica para dar de alta en la base de datos
-                // Luego, responde al cliente con la confirmación
-                out.println("Dron dado de alta: " + alias);
-            } else {
-                // Otros casos (2, 3, 4) pueden manejarse de manera similar
+                // Lee mensajes del cliente y los envía de vuelta
+                String message;
+                message = in.readLine();
+                String[] array = message.split(":");
+                if ("alta".equals(array[0])) {
+                    int id = altaDron(dronesCollection , array[1]);
+                    out.println("Dron dado de alta con id: " + id);
+                }
+                clientSocket.close();
             }
-            }
-
-            // Cierra las conexiones
-            in.close();
-            out.close();
-            clientSocket.close();
-            serverSocket.close();
         } catch (IOException e) {
             e.printStackTrace();
+            
         }
+    }
+
+    // Funciones para interactuar con MongoDB
+    private static int altaDron(MongoCollection<Document> collection, String alias) {
+        // Obtiene el último ID asignado y asigna el siguiente
+        Document doc = collection.find().sort(new Document("_id", -1)).first();
+        int lastId = doc == null ? 0 : doc.getInteger("_id");
+        int nextId = lastId + 1;
+        Document dron = new Document("_id", nextId);
+        dron.append("alias", alias); // Agrega el alias al documento
+        collection.insertOne(dron);
+        return nextId;
     }
 }

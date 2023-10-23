@@ -13,6 +13,8 @@ public class AD_Drone {
         int serverPort = Integer.parseInt(args[1]);
 
         try {
+
+
             // Conecta el cliente al servidor utilizando la IP y el puerto especificados
             Socket clientSocket = new Socket(serverIp, serverPort);
 
@@ -31,12 +33,10 @@ public class AD_Drone {
 
                 switch (opcion) {
                     case 1:
-                            // Dar de alta
-                            String alias = getAlias(scanner);
-                            // Envía el alias y la señal de "dar de alta" al servidor
-                            out.println("alta"); // Señal para dar de alta
-                            out.println(alias);
-                            respuestaServer(in);
+                        // Dar de alta
+                        String alias = getAlias(scanner);
+                        out.println("alta:" + alias);
+                        respuestaServer(in);
                         break;
                     case 2:
                         // Editar perfil
