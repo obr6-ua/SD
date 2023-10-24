@@ -1,30 +1,22 @@
-package cliente_kafka;
+package main_package;
 
 import java.util.Properties;
 
 import java.io.File;
 import java.util.ArrayList;
-import java.util.List;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.NodeList;
 
-import javax.xml.parsers.DocumentBuilder;
-import javax.xml.parsers.DocumentBuilderFactory;
-
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
-import java.io.File;
-import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.net.UnknownHostException;
 import java.time.Duration;
-import java.util.ArrayList;
 import java.util.Collections;
 
 import org.apache.kafka.clients.consumer.ConsumerConfig;
@@ -34,7 +26,6 @@ import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
-import org.apache.kafka.common.Node;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
 
@@ -42,9 +33,7 @@ import com.mongodb.client.FindIterable;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoClients;
 import com.mongodb.client.MongoCollection;
-import com.mongodb.client.MongoCursor;
 import com.mongodb.client.MongoDatabase;
-import org.xml.sax.InputSource;
 
 class DatosDrones {
 	private String idDron;
@@ -117,7 +106,16 @@ class RegistroDrones {
 }
 
 public class AD_Engine {
-	public final int KMAXDRONES = 20;
+	private String puertoEscucha;
+	private int numDrones;
+	private String ipBootstrap;
+	private String puertoBootstrap;
+	private String ipWeather;
+	private String puertoWeather;
+	private String ipBBDD;
+	private String puertoBBDD;
+	private Properties props_consumidor;
+	private Properties props_productor;
 
 	private String mapa[][];
 
@@ -214,40 +212,71 @@ public class AD_Engine {
 
 	}
 
+	public void configuraConsumidor(Properties p_consumidor, String p_ip, String grupo) {
+		p_consumidor.setProperty(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, p_ip);
+		p_consumidor.setProperty(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
+		p_consumidor.setProperty(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
+		p_consumidor.setProperty(ConsumerConfig.GROUP_ID_CONFIG, grupo);
+		p_consumidor.setProperty(ConsumerConfig.GROUP_INSTANCE_ID_CONFIG, "Engine");
+		p_consumidor.setProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
+	}
+
+	public void configuraProductor(Properties p_productor, String p_ip) {
+		p_productor.setProperty(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, p_ip);
+		p_productor.setProperty(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
+		p_productor.setProperty(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
+	}
+
+	public boolean compruebaArgs(String[] args) {
+		boolean check = true;
+		if (args.length != 6) {
+			System.out.println("Error: Se debe ejecutar el servidor de la siguiente forma:");
+			System.out.println(
+					"./AD_Engine <puerto_escucha> <numero_drones> <IP_server_gestor> <puerto_server_gestor> <IP_AD_Weather> <puerto_AD_Weather>");
+			check = false;
+		} else {
+			puertoEscucha = args[0];
+			numDrones = Integer.parseInt(args[1]);
+			ipBootstrap = args[2];
+			puertoBootstrap = args[3];
+			ipWeather = args[4];
+			puertoWeather = args[5];
+			ipBBDD = args[6];
+			puertoBBDD = args[7];
+		}
+		return check;
+	}
+
 	public void main(String[] args) {
-		String servidoresBootstrap = "192.168.56.1:9092";
+		// String servidoresBootstrap = "192.168.56.1:9092";
 		ArrayList<RegistroDrones> registro = new ArrayList<RegistroDrones>();
 		int dronesRegistrados = 0;
 		String mensajeSck = "";
-		int maxId = 0;
-//		InetAddress direccionIP = null;
+		String temperatura = "";
+
+		if (!compruebaArgs(args)) {
+			System.exit(-1);
+		}
 
 		// AD_Engine modo CONSUMIDOR
 		// topic = "productor_consumidor"
 		String topic_consumidor = "drones_engine";
 		String grupo = "Engine";
-		Properties props_consumidor = new Properties();
-		props_consumidor.setProperty(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, servidoresBootstrap);
-		props_consumidor.setProperty(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
-		props_consumidor.setProperty(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG,
-				StringDeserializer.class.getName());
-		props_consumidor.setProperty(ConsumerConfig.GROUP_ID_CONFIG, grupo);
-		props_consumidor.setProperty(ConsumerConfig.GROUP_INSTANCE_ID_CONFIG, "Engine");
-		props_consumidor.setProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
+		props_consumidor = new Properties();
+		configuraConsumidor(props_consumidor, ipBootstrap, grupo);
 		KafkaConsumer<String, String> consumidor = new KafkaConsumer<>(props_consumidor);
 		consumidor.subscribe(Collections.singleton(topic_consumidor));
 
 		// AD_Engine modo PRODUCTOR
 		String topic_productor = "engine_drones";
-		Properties props_productor = new Properties();
-		props_productor.setProperty(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, servidoresBootstrap);
-		props_productor.setProperty(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
-		props_productor.setProperty(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
+		props_productor = new Properties();
+		configuraProductor(props_productor, ipBootstrap);
 		KafkaProducer<String, String> productor = new KafkaProducer<>(props_productor);
 
 		// Nos conectamos a la BBDD para recibir la informacion guardada del registry
+		String cadenaConexionBBDD = "mongodb://" + ipBBDD + ":" + puertoBBDD;
 		MongoCollection<org.bson.Document> coleccion = null;
-		MongoClient mongoClient = MongoClients.create("mongodb://localhost:27017");
+		MongoClient mongoClient = MongoClients.create(cadenaConexionBBDD); // "mongodb://localhost:27017"
 		MongoDatabase database = mongoClient.getDatabase("mongo");
 
 		// 1.LA FIGURA VIENE POR XML
@@ -260,30 +289,29 @@ public class AD_Engine {
 		// Recepcion de tabla con la informacion de registro de todos los drones
 		do {
 			coleccion = database.getCollection("Registro");
-		} while (coleccion.countDocuments() < KMAXDRONES); // Solo se pueden registrar 20 drones
+		} while (coleccion.countDocuments() < numDrones); // Hasta el numerio de drones introducido por parametro
 
 		try {
-			maxId = 0;
 			FindIterable<org.bson.Document> documents = coleccion.find();
 			for (org.bson.Document doc : documents) {
 				int token = doc.getInteger("token");
 
 				RegistroDrones dronDB = new RegistroDrones(token);
 				registro.add(dronDB);
-				maxId++;
 			}
 		} catch (Exception e) {
 			System.out.println("Error: " + e.toString());
 		}
 		mongoClient.close();
 
-		// 3. Recibimos {token} de cada dron y contrastamos con el registro de los
+		// 3. Recibimos {token} de cada dron del Registry y contrastamos con el registro
+		// de los
 		// id-tokens
 
 		try {
 			ServerSocket skServidor = new ServerSocket(9999);
 			int contador = 0;
-			while (dronesRegistrados < maxId && dronesRegistrados < KMAXDRONES) {
+			while (dronesRegistrados < numDrones) {
 				/*
 				 * Se espera un cliente que quiera conectarse
 				 */
@@ -306,7 +334,7 @@ public class AD_Engine {
 				skCliente.close();
 			}
 			skServidor.close();
-			System.exit(0);
+			// System.exit(0);
 		} catch (Exception e) {
 			System.out.println("Ha fallado el AD_Engine al comunicarse por socket con el dron");
 		}
@@ -319,18 +347,41 @@ public class AD_Engine {
 			productor.send(mensaje);
 		} catch (Exception e) {
 			System.out.println(e.toString());
+			System.exit(-1);
 		} finally {
 			productor.close();
 		}
 
-		for (;;) {
-			ConsumerRecords<String, String> mensajeC = consumidor.poll(Duration.ofMillis(0));
-			for (ConsumerRecord<String, String> msj : mensajeC) {
-				actualizarMapa(strToMatrix(mapaStr), msj.value());
-				mapaStr = matrixToStr(mapa);
-				ProducerRecord<String, String> mensajeP = new ProducerRecord<>(topic_productor, mapaStr);
-				productor.send(mensajeP);
+		try {
+			while (true) {
+
+				// Realizamos la peticion a AD_Weather
+
+				try {
+					Socket skCliente = new Socket(ipWeather, Integer.parseInt(puertoWeather));
+					leeSocket(skCliente, temperatura);
+				} catch (Exception e) {
+					System.out.println(e.toString());
+					System.exit(-1);
+				}
+
+				if (Integer.parseInt(temperatura) >= 40 || Integer.parseInt(temperatura) <= -1) {
+					System.out.println("CONDICIONES CLIMATICAS ADVERSAS ESPECTACULO FINALIZADO");
+					System.exit(-1);
+				} else {
+					ConsumerRecords<String, String> mensajeC = consumidor.poll(Duration.ofMillis(0));
+					for (ConsumerRecord<String, String> msj : mensajeC) {
+						actualizarMapa(strToMatrix(mapaStr), msj.value());
+						mapaStr = matrixToStr(mapa);
+						ProducerRecord<String, String> mensajeP = new ProducerRecord<>(topic_productor, mapaStr);
+						productor.send(mensajeP);
+					}
+				}
+
 			}
+		} finally {
+			consumidor.close();
 		}
+
 	}
 }
