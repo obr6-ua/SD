@@ -1,4 +1,4 @@
-package cliente_kafka;
+package main_package;
 
 import java.util.Properties;
 
