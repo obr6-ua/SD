@@ -1,10 +1,11 @@
-import com.mongodb.client.MongoClient;
-import com.mongodb.client.MongoClients;
-import com.mongodb.client.MongoCollection;
-import com.mongodb.client.MongoDatabase;
-import org.bson.Document;
-import org.bson.types.ObjectId;
+// import com.mongodb.client.MongoClient;
+// import com.mongodb.client.MongoClients;
+// import com.mongodb.client.MongoCollection;
+// import com.mongodb.client.MongoDatabase;
+// import org.bson.Document;
+// import org.bson.types.ObjectId;
 
+import java.util.UUID;
 import java.awt.*;
 import java.awt.datatransfer.*;
 import java.io.*;
@@ -17,14 +18,16 @@ public class AD_Registry {
             return;
         }
 
-        // Conexión a la base de datos MongoDB
-        MongoClient mongoClient = MongoClients.create("mongodb://localhost:27017");
-        MongoDatabase database = mongoClient.getDatabase("drones_db");
-        MongoCollection<Document> dronesCollection = database.getCollection("drones");
+        
 
         String serverIp = args[0];
         int clientPort = Integer.parseInt(args[1]);
         int dbPort = Integer.parseInt(args[2]);
+
+        // // // Conexión a la base de datos MongoDB
+        // MongoClient mongoClient = MongoClients.create("mongodb://localhost:27017");
+        // MongoDatabase database = mongoClient.getDatabase("drones_db");
+        // MongoCollection<Document> dronesCollection = database.getCollection("drones");
 
         try {
             // Crea un servidor en el puerto de clientes
@@ -65,10 +68,38 @@ public class AD_Registry {
                 String message;
                 message = in.readLine();
                 String[] array = message.split(":");
-                if ("alta".equals(array[0])) {
-                    int id = altaDron(dronesCollection , array[1]);
-                    out.println("Dron dado de alta con id: " + id);
+                switch (array[0]) {
+                    case "alta":
+                        String token = altaDron(dronesCollection , Integer.parseInt(array[1]));
+                        out.println("Dron dado de alta con id: " + token);
+                        break;
+                    case "editar":
+                        boolean edited = editarDron(dronesCollection, Integer.parseInt(array[1]), array[2]);
+                        if (edited) {
+                            out.println("Dron editado correctamente");
+                        } else {
+                            out.println("No se pudo editar el dron");
+                        }
+                    break;
+                        break;
+                    case "baja":
+                        // Baja de dron
+                        boolean deleted = bajaDron(dronesCollection, Integer.parseInt(array[1]));
+                        if (deleted) {
+                            out.println("Dron eliminado correctamente");
+                        } else {
+                            out.println("No se pudo eliminar el dron");
+                        }
+                        break;
+                    case "iniciar":
+                        
+                        break;
+                    default:
+                        clientSocket.close();
+                        break;
                 }
+
+                System.out.println("Fin conexion\n\n");
                 clientSocket.close();
             }
         } catch (IOException e) {
@@ -77,15 +108,53 @@ public class AD_Registry {
         }
     }
 
+    public static String generateRandomToken() {
+        UUID uuid = UUID.randomUUID();
+        return uuid.toString().replaceAll("-", "");
+    }
+
     // Funciones para interactuar con MongoDB
     private static int altaDron(MongoCollection<Document> collection, String alias) {
         // Obtiene el último ID asignado y asigna el siguiente
-        Document doc = collection.find().sort(new Document("_id", -1)).first();
-        int lastId = doc == null ? 0 : doc.getInteger("_id");
-        int nextId = lastId + 1;
-        Document dron = new Document("_id", nextId);
-        dron.append("alias", alias); // Agrega el alias al documento
-        collection.insertOne(dron);
-        return nextId;
+        // Document doc = collection.find().sort(new Document("_id", -1)).first();
+        // int lastId = doc == null ? 0 : doc.getInteger("_id");
+        // int nextId = lastId + 1;
+        // Document dron = new Document("_id", nextId);
+        // dron.append("alias", alias); // Agrega el alias al documento
+        // collection.insertOne(dron);
+        String randomToken = generateRandomToken();
+
+        return generateRandomToken;
     }
+
+    private static boolean editarDron(MongoCollection<Document> collection, int id, String alias) {
+        // try {
+        //     Document filter = new Document("_id", id);
+        //     Document update = new Document("$set", new Document("alias", alias));
+
+        //     collection.updateOne(filter, update);
+    
+        //     return true;
+        // } catch (Exception e) {
+        //     e.printStackTrace();
+        //     return false; 
+        // }
+        return true;
+    }
+    
+    private static boolean bajaDron(MongoCollection<Document> collection, int id) {
+        // try {
+
+        //     Document filter = new Document("_id", id);
+
+        //     collection.deleteOne(filter);
+    
+        //     return true; 
+        // } catch (Exception e) {
+        //     e.printStackTrace();
+        //     return false; 
+        // }
+        return true;
+    }
+
 }
