@@ -35,6 +35,10 @@ import com.mongodb.client.MongoClients;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
 
+import com.google.gson.Gson;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonArray;
+
 class DatosDrones {
 	private String idDron;
 	private String coordenadaXDestino;
@@ -44,6 +48,9 @@ class DatosDrones {
 		this.idDron = idDron;
 		this.coordenadaXDestino = coordenadaXDestino;
 		this.coordenadaYDestino = coordenadaYDestino;
+	}
+
+	public DatosDrones() {
 	}
 
 	public String getId() {
@@ -56,6 +63,18 @@ class DatosDrones {
 
 	public String getY() {
 		return coordenadaYDestino;
+	}
+	
+	public void setId(String p_id) {
+		idDron = p_id;
+	}
+	
+	public void setX(String p_x) {
+		coordenadaXDestino = p_x;
+	}
+	
+	public void setY(String p_y) {
+		coordenadaYDestino = p_y;
 	}
 }
 
@@ -106,20 +125,20 @@ class RegistroDrones {
 }
 
 public class AD_Engine {
-	private String puertoEscucha;
-	private int numDrones;
-	private String ipBootstrap;
-	private String puertoBootstrap;
-	private String ipWeather;
-	private String puertoWeather;
-	private String ipBBDD;
-	private String puertoBBDD;
-	private Properties props_consumidor;
-	private Properties props_productor;
+	private static String puertoEscucha;
+	private static int numDrones;
+	private static String ipBootstrap;
+	private static String puertoBootstrap;
+	private static String ipWeather;
+	private static String puertoWeather;
+	private static String ipBBDD;
+	private static String puertoBBDD;
+	private static Properties props_consumidor;
+	private static Properties props_productor;
 
-	private String mapa[][];
+	private static String mapa[][];
 
-	public String leeSocket(Socket p_sk, String p_Datos) {
+	public static String leeSocket(Socket p_sk, String p_Datos) {
 		try {
 			InputStream aux = p_sk.getInputStream();
 			DataInputStream flujo = new DataInputStream(aux);
@@ -131,7 +150,7 @@ public class AD_Engine {
 		return p_Datos;
 	}
 
-	public void escribeSocket(Socket p_sk, String p_Datos) {
+	public static void escribeSocket(Socket p_sk, String p_Datos) {
 		try {
 			OutputStream aux = p_sk.getOutputStream();
 			DataOutputStream flujo = new DataOutputStream(aux);
@@ -142,7 +161,7 @@ public class AD_Engine {
 		return;
 	}
 
-	public boolean checkRegistry(int p_token, ArrayList<RegistroDrones> registro) {
+	public static boolean checkRegistry(int p_token, ArrayList<RegistroDrones> registro) {
 		boolean ok = false;
 
 		for (RegistroDrones dr : registro) {
@@ -155,7 +174,7 @@ public class AD_Engine {
 		return ok;
 	}
 
-	public String matrixToStr(String[][] matriz) {
+	public static String matrixToStr(String[][] matriz) {
 		StringBuilder sb = new StringBuilder();
 		for (String[] fila : matriz) {
 			for (String cell : fila) {
@@ -166,7 +185,7 @@ public class AD_Engine {
 		return sb.toString();
 	}
 
-	public String[][] strToMatrix(String strMatriz) {
+	public static String[][] strToMatrix(String strMatriz) {
 		String[] filas = strMatriz.split("\n");
 		String[][] mapa = new String[20][20];
 
@@ -180,7 +199,7 @@ public class AD_Engine {
 		return mapa;
 	}
 
-	public void actualizarMapa(String[][] mapa, String mensaje) {
+	public static void actualizarMapa(String[][] mapa, String mensaje) {
 		// mensaje tipo: "id:S"
 		String info[] = mensaje.split(":");
 		char pos = info[1].charAt(0);
@@ -212,7 +231,7 @@ public class AD_Engine {
 
 	}
 
-	public void configuraConsumidor(Properties p_consumidor, String p_ip, String grupo) {
+	public static void configuraConsumidor(Properties p_consumidor, String p_ip, String grupo) {
 		p_consumidor.setProperty(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, p_ip);
 		p_consumidor.setProperty(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
 		p_consumidor.setProperty(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
@@ -221,13 +240,13 @@ public class AD_Engine {
 		p_consumidor.setProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
 	}
 
-	public void configuraProductor(Properties p_productor, String p_ip) {
+	public static void configuraProductor(Properties p_productor, String p_ip) {
 		p_productor.setProperty(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, p_ip);
 		p_productor.setProperty(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
 		p_productor.setProperty(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
 	}
 
-	public boolean compruebaArgs(String[] args) {
+	public static boolean compruebaArgs(String[] args) {
 		boolean check = true;
 		if (args.length != 6) {
 			System.out.println("Error: Se debe ejecutar el servidor de la siguiente forma:");
@@ -247,12 +266,72 @@ public class AD_Engine {
 		return check;
 	}
 
-	public void main(String[] args) {
+	public static void printBanner() {
+		System.out.println("*********** ART WITH DRONES ***********");
+	}
+
+	public static void printMap(String mapa[][]) {
+		for (int i = 1; i <= 20; i++) {
+			for (int j = 1; j <= 20; j++) {
+				if (i == 1 || j == 1) {
+					// Imprimir números de fila y columna en los bordes
+					System.out.print(j + i - 1 + "   ");
+				} else {
+					// Interior del mapa
+					System.out.println(mapa[i][j]);
+				}
+			}
+			System.out.println("\n");
+		}
+	}
+
+	public static void printState(String state) {
+		if (state == "OK") {
+			System.out.println("	   FIGURA COMPLETADA\n");
+		} else if (state == "PROCESO") {
+			System.out.println("	   FIGURA EN PROCESO\n");
+		} else {
+			System.out.println("CONDICIONES CLIMATICAS ADVERSAS ESPECTACULO FINALIZADO\n");
+		}
+	}
+	
+	public static void getDataJson(String jsonName, ArrayList<DatosDrones> datosDrones){
+		DatosDrones dron = new DatosDrones();
+		Gson gson = new Gson();
+        JsonObject jsonObject = gson.fromJson(jsonName, JsonObject.class);
+        
+        JsonArray figurasArray = jsonObject.getAsJsonArray("figuras");
+        
+        for (int i = 0; i < figurasArray.size(); i++) {
+            JsonObject figuraObject = figurasArray.get(i).getAsJsonObject();
+            String nombreFigura = figuraObject.get("Nombre").getAsString();
+            JsonArray dronesArray = figuraObject.getAsJsonArray("Drones");
+
+            for (int j = 0; j < dronesArray.size(); j++) {
+                JsonObject dronObject = dronesArray.get(j).getAsJsonObject();
+                int idDron = dronObject.get("ID").getAsInt();
+                String coordenadas = dronObject.get("POS").getAsString();
+
+                // Aquí puedes crear objetos de DatosDrones y almacenar los datos
+                dron.setId(String.valueOf(idDron));
+                String[] coordenadasArray = coordenadas.split(",");
+                dron.setX(coordenadasArray[0]);
+                dron.setY(coordenadasArray[1]);
+                datosDrones.add(dron);
+            }
+        }
+	}
+
+	public static void main(String[] args) {
 		// String servidoresBootstrap = "192.168.56.1:9092";
 		ArrayList<RegistroDrones> registro = new ArrayList<RegistroDrones>();
-		int dronesRegistrados = 0;
+		int dronesRegistrados = 0, dronesOK = 0;
 		String mensajeSck = "";
 		String temperatura = "";
+		String jsonName = "AwD_figuras.json";
+		ArrayList<DatosDrones> datosDrones = new ArrayList<DatosDrones>();
+
+		mapa = new String[20][20];
 
 		if (!compruebaArgs(args)) {
 			System.exit(-1);
@@ -279,81 +358,84 @@ public class AD_Engine {
 		MongoClient mongoClient = MongoClients.create(cadenaConexionBBDD); // "mongodb://localhost:27017"
 		MongoDatabase database = mongoClient.getDatabase("mongo");
 
-		// 1.LA FIGURA VIENE POR XML
+		while (true) {
 
-		String nombreArchivo = "drones.xml";
-		ArrayList<DatosDrones> datosDronesList = LeerXML.leerXML(nombreArchivo);
+			// 1.LA FIGURA VIENE POR JSON !!!!!!!!!!!!!!!!
+			
+			getDataJson(jsonName, datosDrones);
 
-		// 2. Sacamos de BBDD información sobre {token} de cada dron y lo guardamos
+			String nombreArchivo = "drones.xml";
+			ArrayList<DatosDrones> datosDronesList = LeerXML.leerXML(nombreArchivo);
 
-		// Recepcion de tabla con la informacion de registro de todos los drones
-		do {
-			coleccion = database.getCollection("Registro");
-		} while (coleccion.countDocuments() < numDrones); // Hasta el numerio de drones introducido por parametro
+			// 2. Sacamos de BBDD información sobre {token} de cada dron y lo guardamos
 
-		try {
-			FindIterable<org.bson.Document> documents = coleccion.find();
-			for (org.bson.Document doc : documents) {
-				int token = doc.getInteger("token");
+			// Recepcion de tabla con la informacion de registro de todos los drones
+			do {
+				coleccion = database.getCollection("Registro");
+			} while (coleccion.countDocuments() < numDrones); // Hasta el numerio de drones introducido por parametro
 
-				RegistroDrones dronDB = new RegistroDrones(token);
-				registro.add(dronDB);
-			}
-		} catch (Exception e) {
-			System.out.println("Error: " + e.toString());
-		}
-		mongoClient.close();
+			try {
+				FindIterable<org.bson.Document> documents = coleccion.find();
+				for (org.bson.Document doc : documents) {
+					int token = doc.getInteger("token");
 
-		// 3. Recibimos {token} de cada dron del Registry y contrastamos con el registro
-		// de los
-		// id-tokens
-
-		try {
-			ServerSocket skServidor = new ServerSocket(9999);
-			int contador = 0;
-			while (dronesRegistrados < numDrones) {
-				/*
-				 * Se espera un cliente que quiera conectarse
-				 */
-				Socket skCliente = skServidor.accept(); // Crea objeto
-				System.out.println("Sirviendo cliente...");
-
-				mensajeSck = leeSocket(skCliente, mensajeSck);
-
-				if (checkRegistry(Integer.parseInt(mensajeSck), registro)) {
-					mensajeSck = datosDronesList.get(contador).getId() + "," + datosDronesList.get(contador).getX()
-							+ "," + datosDronesList.get(contador).getY();
-					escribeSocket(skCliente, mensajeSck);
-					mapa[0][0] = datosDronesList.get(contador).getId() + "r";
-					dronesRegistrados++;
-					contador++;
-				} else {
-					mensajeSck = "-1";
+					RegistroDrones dronDB = new RegistroDrones(token);
+					registro.add(dronDB);
 				}
-
-				skCliente.close();
+			} catch (Exception e) {
+				System.out.println("Error: " + e.toString());
 			}
-			skServidor.close();
-			// System.exit(0);
-		} catch (Exception e) {
-			System.out.println("Ha fallado el AD_Engine al comunicarse por socket con el dron");
-		}
+			mongoClient.close();
 
-		// mando mapa por kafka
+			// 3. Recibimos {token} de cada dron del Registry y contrastamos con el registro
+			// de los
+			// id-tokens
 
-		String mapaStr = matrixToStr(mapa);
-		try {
-			ProducerRecord<String, String> mensaje = new ProducerRecord<>(topic_productor, mapaStr);
-			productor.send(mensaje);
-		} catch (Exception e) {
-			System.out.println(e.toString());
-			System.exit(-1);
-		} finally {
-			productor.close();
-		}
+			try {
+				ServerSocket skServidor = new ServerSocket(9999);
+				int contador = 0;
+				while (dronesRegistrados < numDrones) {
+					/*
+					 * Se espera un cliente que quiera conectarse
+					 */
+					Socket skCliente = skServidor.accept(); // Crea objeto
+					System.out.println("Sirviendo cliente...");
 
-		try {
-			while (true) {
+					mensajeSck = leeSocket(skCliente, mensajeSck);
+
+					if (checkRegistry(Integer.parseInt(mensajeSck), registro)) {
+						mensajeSck = datosDronesList.get(contador).getId() + "," + datosDronesList.get(contador).getX()
+								+ "," + datosDronesList.get(contador).getY();
+						escribeSocket(skCliente, mensajeSck);
+						mapa[0][0] = datosDronesList.get(contador).getId() + "r";
+						dronesRegistrados++;
+						contador++;
+					} else {
+						mensajeSck = "-1";
+					}
+
+					skCliente.close();
+				}
+				skServidor.close();
+				// System.exit(0);
+			} catch (Exception e) {
+				System.out.println("Ha fallado el AD_Engine al comunicarse por socket con el dron");
+			}
+
+			// mando mapa por kafka
+
+			String mapaStr = matrixToStr(mapa);
+			try {
+				ProducerRecord<String, String> mensaje = new ProducerRecord<>(topic_productor, mapaStr);
+				productor.send(mensaje);
+			} catch (Exception e) {
+				System.out.println(e.toString());
+				System.exit(-1);
+			} finally {
+				productor.close();
+			}
+
+			try {
 
 				// Realizamos la peticion a AD_Weather
 
@@ -365,23 +447,37 @@ public class AD_Engine {
 					System.exit(-1);
 				}
 
+				// Si las condiciones son adversas finalizamos el espectaculo
 				if (Integer.parseInt(temperatura) >= 40 || Integer.parseInt(temperatura) <= -1) {
-					System.out.println("CONDICIONES CLIMATICAS ADVERSAS ESPECTACULO FINALIZADO");
+					printBanner();
+					printState("-1");
+					printMap(mapa);
 					System.exit(-1);
 				} else {
 					ConsumerRecords<String, String> mensajeC = consumidor.poll(Duration.ofMillis(0));
 					for (ConsumerRecord<String, String> msj : mensajeC) {
+						if (dronesOK == numDrones) {
+							printBanner();
+							printState("OK");
+							printMap(mapa);
+							break;
+						}
+						if (msj.value() == "OK") {
+							dronesOK++;
+						}
 						actualizarMapa(strToMatrix(mapaStr), msj.value());
+						printBanner();
+						printState("PROCESO");
+						printMap(mapa);
 						mapaStr = matrixToStr(mapa);
 						ProducerRecord<String, String> mensajeP = new ProducerRecord<>(topic_productor, mapaStr);
 						productor.send(mensajeP);
 					}
 				}
-
+			} finally {
+				consumidor.close();
 			}
-		} finally {
-			consumidor.close();
-		}
 
+		}
 	}
 }
