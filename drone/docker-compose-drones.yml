@@ -1,0 +1,34 @@
+version: '3'
+services:
+  drone1:
+    image: ad_drone:latest  
+    ports:
+      - "5001:5001" 
+    environment:
+      DRONE_ID: 1
+    networks:
+      - my_custom_network
+  drone2:
+    image: ad_drone:latest  
+    ports:
+      - "5002:5001"  
+    environment:
+      DRONE_ID: 2
+    networks:
+      - my_custom_network
+
+  mongo:
+    image: mongo
+    ports:
+      - "27017:27017"
+    networks:
+      - my_custom_network
+
+    volumes: 
+      - mongo_data:/data/db
+
+networks:
+  my_custom_network:
+
+volumes:
+  mongo_data:
