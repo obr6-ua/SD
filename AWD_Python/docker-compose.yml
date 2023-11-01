@@ -1,0 +1,100 @@
+version: '3'
+services:
+  clima:
+    build:
+      context: .
+      dockerfile: Clima.DockerFile
+    container_name: con-clima
+    working_dir: /opt/Clima
+    command: python3 AA_Weather.py 3000
+
+
+  engine:
+    build:
+      context: .
+      dockerfile: Engine.DockerFile
+    ports:
+      - "3001:3001"
+    container_name: engine
+    command: tail -F anything
+    environment:
+      IP: 172.27.254.207
+      PORT_CLIMA: 3000
+      PORT_ENGINE: 3001
+      PORT_REGISTRY: 3002
+
+  registry:
+    build:
+      context: .
+      dockerfile: Registry.DockerFile
+    ports:
+      - "3002:3002"
+    command: tail -F anything
+    environment:
+      IP: 172.27.254.207
+      PORT_CLIMA: 3000
+      PORT_ENGINE: 3001
+      PORT_REGISTRY: 3002
+
+  mongo:
+    image: mongo
+    ports:
+      - "27017:27017"
+    container_name: bbddMongo
+
+  drone1:
+    build:
+      context: .
+      dockerfile: Drone.DockerFile
+    ports:
+      - "4001:4000"
+    environment:
+      ID: 1
+      IP: 172.27.254.207
+      PORT_ENGINE: 3001
+      PORT_REGISTRY: 
+  drone2:
+    build:
+      context: .
+      dockerfile: Drone.DockerFile
+    ports:
+      - "4002:4000"
+    environment:
+      ID: 2
+      IP: 172.27.254.207
+      PORT_ENGINE: 3001
+      PORT_REGISTRY: 3002
+  
+  drone3:
+    build:
+      context: .
+      dockerfile: Drone.DockerFile
+    ports:
+      - "4003:4000"
+    environment:
+      ID: 3
+      IP: 172.27.254.207
+      PORT_ENGINE: 3001
+      PORT_REGISTRY: 3002
+
+  zookeeper:
+    image: wurstmeister/zookeeper
+    ports:
+      - "2181:2181"
+    container_name: con-zoo
+    
+  kafka:
+    image: wurstmeister/kafka
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092  # Definir la variable KAFKA_LISTENERS
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+
+    container_name: con-kafka
+    depends_on:
+      - zookeeper
+
