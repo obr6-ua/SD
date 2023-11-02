@@ -1,0 +1,52 @@
+{
+    "lista" : [
+        {
+            "ciudad"      : "Alicante",
+            "temperatura" : -5
+        },
+        {
+            "ciudad"      : "Moscú",
+            "temperatura" : 0
+        },
+        {
+            "ciudad"      : "Sidney",
+            "temperatura" : 5
+        },
+        {
+            "ciudad"      : "Londres",
+            "temperatura" : 10
+        },
+        {
+            "ciudad"      : "Madrid",
+            "temperatura" : 15
+        },
+        {
+            "ciudad"      : "Wisconsin",
+            "temperatura" : 15
+        },
+        {
+            "ciudad"      : "Pekín",
+            "temperatura" : 20
+        },
+        {
+            "ciudad"      : "Ámsterdam",
+            "temperatura" : 20
+        },
+        {
+            "ciudad"      : "París",
+            "temperatura" : 25
+        },
+        {
+            "ciudad"      : "Nueva York",
+            "temperatura" : 30
+        },
+        {
+            "ciudad"      : "Buenos Aires",
+            "temperatura" : 35
+        },
+        {
+            "ciudad"      : "Helsinki",
+            "temperatura" : 40
+        }
+    ]
+}
