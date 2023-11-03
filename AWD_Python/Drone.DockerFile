@@ -1,9 +1,10 @@
 FROM alpine
-ENV entorno=1
+
 RUN apk add python3
 RUN apk add py3-pip
 RUN pip install colorama
 RUN pip install kafka-python
+RUN pip install pymongo
 
 ADD Drone /opt/Drone
 
