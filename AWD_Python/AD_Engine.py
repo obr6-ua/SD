@@ -168,20 +168,20 @@ class AD_Engine:
         
         if mov == 'N':
             if self.mapa[posx][posy-1]:
-                self.mapa[posx][posy-1] = self.mapa[posx][posy-1] + "/" + "\033[91m{id}\033[0m"
-            self.mapa[posx][posy-1] = "\033[91m{id}\033[0m"
+                self.mapa[posx][posy-1] = self.mapa[posx][posy-1] + "/" + "\033[91m" + str(id) + "\033[0m"
+            self.mapa[posx][posy-1] = "\033[91m" + str(id) + "\033[0m"
         elif mov == 'S':
             if self.mapa[posx][posy+1]:
-                self.mapa[posx][posy+1] = self.mapa[posx][posy+1] + "/" + "\033[91m{id}\033[0m"
+                self.mapa[posx][posy+1] = self.mapa[posx][posy+1] + "/" + "\033[91m" + str(id) + "\033[0m"
             self.mapa[posx][posy+1] = "\033[91m{id}\033[0m"
         elif mov == 'E':
             if self.mapa[posx-1][posy]:
-                self.mapa[posx][posy-1] = self.mapa[posx][posy-1] + "/" + "\033[91m{id}\033[0m"
-            self.mapa[posx][posy-1] = "\033[91m{id}\033[0m"
+                self.mapa[posx][posy-1] = self.mapa[posx][posy-1] + "/" + "\033[91m" + str(id) + "\033[0m"
+            self.mapa[posx][posy-1] = "\033[91m" + str(id) + "\033[0m"
         else:
             if self.mapa[posx+1][posy]:
-                self.mapa[posx][posy+1] = self.mapa[posx][posy+1] + "/" + "\033[91m{id}\033[0m"
-            self.mapa[posx][posy+1] = "\033[91m{id}\033[0m"
+                self.mapa[posx][posy+1] = self.mapa[posx][posy+1] + "/" + "\033[91m" + str(id) + "\033[0m"
+            self.mapa[posx][posy+1] = "\033[91m" + str(id) + "\033[0m"
 
     def startKafka(self):
         drones_completados = 0
@@ -203,7 +203,7 @@ class AD_Engine:
                 if valor == "id:COMPLETADO":
                     id, aux = valor.split(":")
                     posx, posy = self.buscarId(id)
-                    self.mapa[posx][posy].replace("\033[91m{id}\033[0m", "\033[92m{id}\033[0m")
+                    self.mapa[posx][posy].replace("\033[91m" + str(id) + "\033[0m", "\033[92m" + str(id) + "\033[0m")
                     drones_completados += 1
                 else:
                     # Divide el mensaje en "id" y "letra"
@@ -256,7 +256,7 @@ class AD_Engine:
                             self.mapa = [["" for _ in range(KTAMANYO)] for _ in range(KTAMANYO)]
 
                             # Poner todas las ids en la posicion 0
-                            self.mapa[0][0] = "/".join([f"\x1b[31m{id}\x1b[0m" for id in self.idsValidas])
+                            self.mapa[0][0] = "/".join([f"\x1b[31m" + str(id) + "\x1b[0m" for id in self.idsValidas])
 
                             # Empezar a mandar y recibir mensajes por kafka
                             self.startKafka()
@@ -264,7 +264,7 @@ class AD_Engine:
                         else:
                             os.sleep(10)
                             print("No hay mas figuras, mandando drones a base")
-                            self.mapa[0][0] = "/".join([f"\x1b[31m{id}\x1b[0m" for id in self.idsValidas])
+                            self.mapa[0][0] = "/".join([f"\x1b[31m" + str(id) + "\x1b[0m" for id in self.idsValidas])
                             self.printMap()
                             self.start()
             else:
