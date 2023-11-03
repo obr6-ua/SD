@@ -1,19 +1,19 @@
-from kafka import KafkaConsumer, KafkaProducer
+# from kafka import KafkaConsumer, KafkaProducer
 from multiprocessing import Process
 
 import sys
 import socket
 import os
 
-from colorama import Fore, Back, Style
+# from colorama import Fore, Back, Style
 
 FORMAT = 'utf-8'
-HEADER = 128
+HEADER = 4096
 POSSIBLE_MOVES = ['w', 'a', 's', 'd', 'aw', 'wa', 'wd', 'dw', 'sd', 'ds', 'as', 'sa']
 
 def editUser(host, port):
     ADDR_REGISTRO = (host, port)
-
+    token = "a"
     try:
         client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         client.connect(ADDR_REGISTRO)
@@ -22,9 +22,9 @@ def editUser(host, port):
         usuario = input("Alias antiguo: ")
         user_info = (2, usuario)
 
-        client.send(str(user_info).encode(FORMAT))
+        client.send(str(user_info))
 
-        recibido = client.recv(100).decode(FORMAT)
+        recibido = client.recv(100)
         respuesta = eval(recibido)
 
         if(respuesta[0] == -1):
@@ -36,10 +36,11 @@ def editUser(host, port):
             alias_new  = input("Alias nuevo: ")
 
             msg = (alias_new)
-            client.send(str(msg).encode(FORMAT))
+            client.send(str(msg))
 
-            respuesta = eval(client.recv(100).decode(FORMAT))
-            print(respuesta[1])
+            respuesta = eval(client.recv(100))
+            print(respuesta[0])
+            token = respuesta[0]
     except Exception as e:
         print("Fallo con el servidor de Registry")
         print(e)
@@ -48,26 +49,33 @@ def editUser(host, port):
 
 def registro(host, port):
     try:
-        ADDR_REGISTRO = (host, port)  
+        ADDR_REGISTRO = (host, port)
         client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         client.connect(ADDR_REGISTRO)
 
-        print (f"Establecida conexión en [{ADDR_REGISTRO}]")
+        print(f"Establecida conexión en [{ADDR_REGISTRO}]")
 
-        usuario = input("Alias: ")
-        contra = input("Contraseña nueva: ")
 
-        user_info = (1, usuario, contra)
-        client.send(str(user_info).encode(FORMAT))
+        client.send("1".encode(FORMAT))  # Enviar la solicitud codificada en bytes
 
-        respuesta = eval(client.recv(100).decode(FORMAT))
-        print(respuesta[1])
+        respuesta = eval(client.recv(HEADER).decode(FORMAT))  # Recibir y decodificar la respuesta
+
+        if respuesta[0] == -1:
+            print(respuesta[1])
+        else:
+            print(respuesta[1])
+
+            # Recibir el mensaje del Registry
+            mensaje_del_registry = client.recv(100).decode(FORMAT)
+            print(f"He recibido el mensaje del Registry: {mensaje_del_registry}")
 
     except Exception as e:
         print("Error al conectar con el servidor de Registro")
         print(e)
 
     client.close()
+
+
 
 def logearse(host, port):
     ADDR_log = (host, port) 
@@ -82,22 +90,21 @@ def logearse(host, port):
     print (f"Establecida conexión en [{ADDR_log}]")
 
     ## Confirmación conexión
-    recibido = client.recv(HEADER).decode(FORMAT)
+    recibido = client.recv(HEADER)
     msg = eval(recibido)
 
 
     if(msg[0] == 1):
         alias = input("Introduce alias: ")
-        contra = input("Introduce contraseña: ")
 
-        clientmsg = (alias,contra)
+        clientmsg = (alias)
 
         try:
             ## Enviar alias
-            client.send(str(clientmsg).encode(FORMAT))
+            client.send(str(clientmsg))
 
             ## code 1: login correcto
-            recibido = client.recv(HEADER).decode(FORMAT)
+            recibido = client.recv(HEADER)
 
             msg = eval(recibido)
             if(msg[0] == -1):
@@ -138,102 +145,97 @@ def logearse(host, port):
 
     client.close()
 
-def pedirMovimiento(dron):
-    while(mov not in POSSIBLE_MOVES):
+# def pedirMovimiento(dron):
+#     while(mov not in POSSIBLE_MOVES):
         
-        dron
+#         dron
 
-    return mov
+#     return mov
 
-def consumirMapa():
-    try:
-        mapConsumer = KafkaConsumer('map',bootstrap_servers=SERVER_KAFKA)
+# def consumirMapa():
+#     try:
+#         mapConsumer = KafkaConsumer('map',bootstrap_servers=SERVER_KAFKA)
         
-        for mapa in mapConsumer:
-            msg = mapa.value.decode(FORMAT)
+#         for mapa in mapConsumer:
+#             msg = mapa.value.decode(FORMAT)
 
-            if('FIN DE PARTIDA' in msg):
-                print('\n')
-                print(msg)
-                return
-            else:
-                print(msg)
-    except:
-        print("Hemos tenido un problema con el servidor de Streaming (mapa)")
-        return
+#             if('FIN DE PARTIDA' in msg):
+#                 print('\n')
+#                 print(msg)
+#                 return
+#             else:
+#                 print(msg)
+#     except:
+#         print("Hemos tenido un problema con el servidor de Streaming (mapa)")
+#         return
 
 
 
-def producirMov(alias, fn):
-    try:
-        movProducer = KafkaProducer(bootstrap_servers=SERVER_KAFKA)
-        sys.stdin = os.fdopen(fn)  #open stdin in this process
+# def producirMov(alias, fn):
+#     try:
+#         movProducer = KafkaProducer(bootstrap_servers=SERVER_KAFKA)
+#         sys.stdin = os.fdopen(fn)  #open stdin in this process
 
-        while(True):
-            mov = pedirMovimiento()
-            movProducer.send('moves', f"('{alias}', '{mov}')".encode(FORMAT))
-            movProducer.flush()
-    except:
-        print("Hemos tenido un problema con el servidor de Streaming (movimientos)")
-        return
+#         while(True):
+#             mov = pedirMovimiento()
+#             movProducer.send('moves', f"('{alias}', '{mov}')".encode(FORMAT))
+#             movProducer.flush()
+#     except:
+#         print("Hemos tenido un problema con el servidor de Streaming (movimientos)")
+#         return
 
-def iniciarKafka(alias):
+# def iniciarKafka(alias):
 
-    fn = sys.stdin.fileno()
-    procesoConsumer = Process(target=consumirMapa)
-    procesoProducer = Process(target=producirMov, args=(alias,fn))
+#     fn = sys.stdin.fileno()
+#     procesoConsumer = Process(target=consumirMapa)
+#     procesoProducer = Process(target=producirMov, args=(alias,fn))
 
-    procesoConsumer.start()
-    procesoProducer.start()
+#     procesoConsumer.start()
+#     procesoProducer.start()
 
-    while(procesoConsumer.is_alive()):
-        if(procesoProducer.is_alive() == False):
-            break
+#     while(procesoConsumer.is_alive()):
+#         if(procesoProducer.is_alive() == False):
+#             break
 
-    procesoConsumer.terminate()
-    procesoProducer.terminate()
+#     procesoConsumer.terminate()
+#     procesoProducer.terminate()
 
-    print("Gracias por jugar a nuestro juego!")
-    sys.exit(0)
+#     print("Gracias por jugar a nuestro juego!")
+#     sys.exit(0)
         
 # ip y puerto engine, ip y puerto del kafka, ip y puerto de registry
 def main(): 
     global SERVER_KAFKA
-    if len(sys.argv) == 4:
-        if ":" in sys.argv[1] and ":" in sys.argv[2]:
-            opcion = ""
-            while(opcion != "5"):
-                print("///////////////////////////////////////")
-                print("// BIENVENIDO AL JUEGO               //")
-                print("//                                   //")
-                print("// Menu:                             //")
-                print("// 1. Editar dron                  //")
-                print("// 2. Crear dron                   //")
-                print("// 3. Entrar a la partida            //")
-                print("// 4. Retomar partida (desconexión)  //")
-                print("// 5. Salir                          //")
-                print("///////////////////////////////////////")
-                res = input("Introduce la opcion que quieras hacer: ")
-                SERVER_KAFKA = sys.argv[2].split(":")[0] # Seria el 3
-                ## python3 player 10.0.0.2:3000 (kafka) 10.0.0.2:3002
-                opcion = res
-                if res == "1":
-                    #Opcion 1 se conecta por sockets al registry
-                    editUser(sys.argv[3].split(":")[0], int(sys.argv[3].split(":")[1]))
-                elif res == "2": 
-                    registro(sys.argv[3].split(":")[0], int(sys.argv[3].split(":")[1]))
-                    #Opcion 2 se conecta por sockets al registry
-                elif res == "3":
-                  #Por sockets se conectan al engine pasandole alias + password
-                    logearse(sys.argv[1].split(":")[0], int(sys.argv[1].split(":")[1]))
-                elif res == "4":
-                    alias = input("¿Cuál era tu alias?: ")
-                    iniciarKafka(alias)
+    opcion = ""
+    while(opcion != "5"):
+        print("///////////////////////////////////////")
+        print("// BIENVENIDO AL ESPECTACULO         //")
+        print("//                                   //")
+        print("// Menu:                             //")
+        print("// 1. Editar dron                    //")
+        print("// 2. Crear dron                     //")
+        print("// 3. Entrar a la partida            //")
+        print("// 4. Retomar partida (desconexión)  //")
+        print("// 5. Salir                          //")
+        print("///////////////////////////////////////")
+        res = input("Introduce la opcion que quieras hacer: ")
+        # SERVER_KAFKA = sys.argv[2].split(":")[0] # Seria el 3
+        ## python3 player 10.0.0.2:3000 (kafka) 10.0.0.2:3002
+        opcion = res
+        if res == "1":
+            #Opcion 1 se conecta por sockets al registry
+            editUser(os.getenv("IP"), int(os.getenv("PORT")))
+        elif res == "2": 
+            registro(os.getenv("IP"), int(os.getenv("PORT")))
+            #Opcion 2 se conecta por sockets al registry
+        elif res == "3":
+            #Por sockets se conectan al engine pasandole alias + password
+            logearse(os.getenv("IP_ENGINE") , int(os.getenv("PORT_ENGINE")), )
+        elif res == "4":
+            ""
+            # alias = input("¿Cuál era tu alias?: ")
+            # iniciarKafka(alias)
 
-        else:
-            print("Incorrect usage -> AA_Player ip:port(Engine) ip:port(Kafka) ip:port(Registry)")
-    else:
-        print("Incorrect usage -> AA_Player ip:port(Engine) ip:port(Kafka) ip:port(Registry)")
 
 
 if __name__ == "__main__":
