@@ -54,9 +54,11 @@ services:
       context: .
       dockerfile: Drone.DockerFile
     environment:
-      IP: 192.168.56.1
+      IP: 192.168.100.69
       PORT_ENGINE: 3001
       PORT: 3002
+      PORT_KAFKA: 9092
+
     command: python AD_Drone.py
     container_name: dron
   

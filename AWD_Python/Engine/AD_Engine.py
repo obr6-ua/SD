@@ -9,10 +9,11 @@ from pymongo import MongoClient
 from kafka import KafkaConsumer
 from kafka import KafkaProducer
 #from random import randint
-from json import loads
 
 JSON = "AwD_figuras.json"
 KTAMANYO = 20
+FORMAT = 'utf-8'
+
 
 # La clase Figuras almacena los datos de las figuras llegados desde el JSON
 class Figuras:
@@ -75,11 +76,11 @@ class AD_Engine:
         
         # Creamos consumidor
         self.consumer = KafkaConsumer(
-        'drones_engine',
-        bootstrap_servers=[self.boostrap_server],
-        auto_offset_reset='earliest',
-        enable_auto_commit=True,
-        group_id='engine')
+            self.topicConsumidor,
+            bootstrap_servers=[self.boostrap_server],
+            auto_offset_reset='earliest',
+            enable_auto_commit=True,
+            group_id='engine')
 
         # Creamos productor
         self.producer = KafkaProducer(bootstrap_servers=[self.boostrap_server])
@@ -92,27 +93,26 @@ class AD_Engine:
     def manageDrone(self, conn, addr, figuraActual):
         print(f"Nuevo dron {addr} conectado.")
         while True:
-            msg_length = conn.recv(4096)
+            msg_length = conn.recv(4096).decode(FORMAT)
             if msg_length:
                 msg_length = int(msg_length)
                 
-                # Mensaje del tipo "id:token"
-                msg = conn.recv(msg_length)
-                aux = msg.split(":")
-                id = aux[0]
-                token = aux[1]
-
+                # Mensaje del dron a conectar
+                token = conn.recv(msg_length).decode(FORMAT)
+                
                 # Buscamos ese token en la bbdd
-                registro = self.coleccion1.find_one({"ID": id, "token": token})
+                registro = self.coleccion1.find_one({"token": token})
 
+                #Si existe pillamos los datos del dron
                 if registro:
-                    print("ID y Token validos")
+                    print("Token valido")
 
+                    id = registro['_id'] 
                     # Le mandamos al dron posicion x e y asignadas
-                    primer_dron = figuraActual.drones_lista.pop(0)
+                    primer_dron = figuraActual["Drones"].pop(0)
                     posx = primer_dron.get("Posicion X", None) 
                     posy = primer_dron.get("Posicion Y", None)
-                    conn.send(posx + ":" + posy)
+                    conn.send((posx + ":" + posy).encode(FORMAT))
 
                     # Me guardo el id del dron que ha logrado registrarse correctamente
                     self.idsValidas.append(id)
@@ -202,8 +202,9 @@ class AD_Engine:
         while drones_completados < self.idsValidas and ciudad["temperatura"] > 0:
             # Mostrar mapa
             self.printMap()
+            matriz_serializada = json.dumps(self.mapa).encode('utf-8')
             # Mandar mapa por kafka
-            self.producer.send(self.topicProductor, value=self.mapa)
+            self.producer.send(self.topicProductor, value=matriz_serializada)
             # Recibir mensajes kafka
             for mensaje in self.consumer:
                 valor = mensaje.value  # Obtiene el valor del mensaje

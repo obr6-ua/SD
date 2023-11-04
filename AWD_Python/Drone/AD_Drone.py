@@ -1,9 +1,11 @@
-# from kafka import KafkaConsumer, KafkaProducer
+from kafka import KafkaConsumer, KafkaProducer
 from multiprocessing import Process
+from json import loads
 
 import sys
 import socket
 import os
+
 
 # from colorama import Fore, Back, Style
 
@@ -11,222 +13,184 @@ import os
 
 FORMAT = 'utf-8'
 HEADER = 4096
-POSSIBLE_MOVES = ['w', 'a', 's', 'd', 'aw', 'wa', 'wd', 'dw', 'sd', 'ds', 'as', 'sa']
+KTAMANYO = 20
 
-def editUser(host, port):
-    ADDR_REGISTRO = (host, port)
-    try:
-        client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        client.connect(ADDR_REGISTRO)
-        print (f"Establecida conexión en [{ADDR_REGISTRO}]")
+class AD_Drone:
+    def __init__(self, id=os.getenv("ID"), alias=None, token=None, x=1, y=1, finalx=None, finaly=None , topicConsumidor='engine_drones', topicProductor= 'drones_engine' , consumer=None , producer=None, state=False):
+        self.id = id
+        self.alias = alias
+        self.token = token
+        self.x = x
+        self.y = y
+        self.finalx = finalx
+        self.finaly = finaly
+        self.topicConsumidor = topicConsumidor
+        self.topicProductor =  topicProductor
+        self.consumer = consumer
+        self.producer = producer
+        self.mapa = [["" for _ in range(KTAMANYO)] for _ in range(KTAMANYO)]
+        self.state = state
 
-        
-        alias = input("Alias antiguo: ")
-        
-        id = os.getenv("ID")
-        
-        cadena = "1:"+id+":"+alias
-        
-        client.send(str(cadena).encode(FORMAT))
 
-        recibido = client.recv(100).encode(FORMAT)
-        respuesta = eval(recibido)
-
-        if(respuesta[0] == -1):
-            print(respuesta[1])
-            return
-
-        else:
-            
-            print('Nuevo alias asignado.')
-    except Exception as e:
-        print("Fallo con el servidor de Registry")
-        print(e)
-
-    client.close()
-
-def registro(host, port):
-    try:
+    def editUser(self,host, port):
         ADDR_REGISTRO = (host, port)
-        client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        client.connect(ADDR_REGISTRO)
-        alias = input("Alias nuevo: ")
-        print(f"Establecida conexión en [{ADDR_REGISTRO}]")
-        
-        id = os.getenv("ID")
-        
-        cadena = "1:"+id+":"+alias
-
-        client.send(cadena.encode(FORMAT))  #Enviar la solicitud codificada en bytes
-
-        respuesta = client.recv(HEADER).decode(FORMAT) #Recibir y decodificar la respuesta
-
-        print(f"He recibido el mensaje del Registry: {respuesta}")
-
-    except Exception as e:
-        print("Error al conectar con el servidor de Registro")
-        print(e)
-
-    client.close()
-
-
-
-def logearse(host, port):
-    ADDR_log = (host, port) 
-    client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    try:
-        client.connect(ADDR_log)
-    except:
-        print("El servidor está desconectado o ya hay una partida en curso")
-        client.close()
-        return
-
-    print (f"Establecida conexión en [{ADDR_log}]") 
-
-    ## Confirmación conexión
-    recibido = client.send(HEADER)
-    msg = eval(recibido)
-
-
-    if(msg[0] == 1):
         try:
-            ## Enviar alias
-            client.send(str(clientmsg))
+            client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            client.connect(ADDR_REGISTRO)
+            print (f"Establecida conexión en [{ADDR_REGISTRO}]")
 
-            ## code 1: login correcto
-            recibido = client.recv(HEADER)
+            alias = input("Alias antiguo: ")
 
-            msg = eval(recibido)
-            if(msg[0] == -1):
-                print(msg[1])
-                return
+            cadena = "1:"+self.id+":"+alias
+            
+            client.send(str(cadena).encode(FORMAT))
 
-            elif(msg[0] == 1):
-                print(msg[1])
-                print("Esperando a que el servidor inicie el juego")
+            self.alias = client.recv(HEADER).encode(FORMAT)
+                
+            print('Nuevo alias asignado.')
+        except Exception as e:
+            print("Fallo con el servidor de Registry")
+            print(e)
 
-                while(True):
-                    try:
-                        esperaPartida = client.recv(HEADER).decode(FORMAT)
-                    except:
-                        print("Fallo con el servidor mientras se esperaba la partida")
-                        client.close()
-                        return
-                        
-                    msg = eval(esperaPartida)
+        client.close()
 
-                    if(msg[0] == 2):
-                        print("Empieza la partida")
-                        print(msg[1])
-                        iniciarKafka(alias)
-                    else:
-                        print(msg[1])
+    def registro(self, host, port):
+        try:
+            ADDR_REGISTRO = (host, port)
+            client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            client.connect(ADDR_REGISTRO)
+            self.alias = input("Alias nuevo: ")
+            print(f"Establecida conexión en [{ADDR_REGISTRO}]")
+
+            
+            cadena = "1:"+self.id+":"+self.alias
+
+            client.send(cadena.encode(FORMAT)) 
+
+            token = client.recv(HEADER).decode(FORMAT) 
+
+            print(f"He recibido el mensaje del Registry: {token}")
+            
+            
+            return 
 
         except Exception as e:
-            print("Parece que hemos tenido un problema con el servidor, prueba más tarde")
+            print("Error al conectar con el servidor de Registro")
             print(e)
+
+        client.close()
+
+    def iniciarKafka(self):
+        kafka = os.getenv('IP')+':'+ os.getenv('PORT_KAFKA')
+        # Creamos consumidor
+        self.consumer = KafkaConsumer(
+            self.topicConsumidor,
+            bootstrap_servers=[kafka],
+            auto_offset_reset='earliest',
+            enable_auto_commit=True,
+            group_id='drones')
+
+        # Creamos productor
+        self.producer = KafkaProducer(bootstrap_servers=[kafka])
+
+    def printMap(self):
+        print("   ", end="")
+        for j in range(1, KTAMANYO + 1):
+            print(f"{j:4}", end=" ")
+        print()
+
+        # Imprimir la matriz con los números de fila en el borde izquierdo
+        for i in range(1, KTAMANYO):
+            # Imprimir el número de fila en el borde izquierdo
+            print(f"{i:3} ", end="")
+
+            # Imprimir espacio en blanco en lugar de los valores de la matriz
+            for j in range(1, KTAMANYO):
+                elemento = self.mapa[i][j]
+                print(f"{elemento:4}", end=" ")
+            print()
+
+
+    def logearse(self ,host, port):
+        ADDR_log = (host, port) 
+        client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        try:
+            client.connect(ADDR_log)
+        except:
+            print("El servidor está desconectado o ya hay una partida en curso")
             client.close()
             return
 
-    elif(msg[0] == -1):
-        print("Ya no caben mas jugadores")
-        client.close()
-        return
+        print (f"Establecida conexión en [{ADDR_log}]")
+  
+        client.send(self.token.encode(FORMAT))
 
-    client.close()
-
-# def pedirMovimiento(dron):
-#     while(mov not in POSSIBLE_MOVES):
+        recibido = client.recv(HEADER).decode(FORMAT)
         
-#         dron
-
-#     return mov
-
-# def consumirMapa():
-#     try:
-#         mapConsumer = KafkaConsumer('map',bootstrap_servers=SERVER_KAFKA)
+        recibido.split(':')
         
-#         for mapa in mapConsumer:
-#             msg = mapa.value.decode(FORMAT)
-
-#             if('FIN DE PARTIDA' in msg):
-#                 print('\n')
-#                 print(msg)
-#                 return
-#             else:
-#                 print(msg)
-#     except:
-#         print("Hemos tenido un problema con el servidor de Streaming (mapa)")
-#         return
-
-
-
-# def producirMov(alias, fn):
-#     try:
-#         movProducer = KafkaProducer(bootstrap_servers=SERVER_KAFKA)
-#         sys.stdin = os.fdopen(fn)  #open stdin in this process
-
-#         while(True):
-#             mov = pedirMovimiento()
-#             movProducer.send('moves', f"('{alias}', '{mov}')".encode(FORMAT))
-#             movProducer.flush()
-#     except:
-#         print("Hemos tenido un problema con el servidor de Streaming (movimientos)")
-#         return
-
-# def iniciarKafka(alias):
-
-#     fn = sys.stdin.fileno()
-#     procesoConsumer = Process(target=consumirMapa)
-#     procesoProducer = Process(target=producirMov, args=(alias,fn))
-
-#     procesoConsumer.start()
-#     procesoProducer.start()
-
-#     while(procesoConsumer.is_alive()):
-#         if(procesoProducer.is_alive() == False):
-#             break
-
-#     procesoConsumer.terminate()
-#     procesoProducer.terminate()
-
-#     print("Gracias por jugar a nuestro juego!")
-#     sys.exit(0)
+        self.finalx = recibido[0]
+        self.finaly = recibido[1]
         
-# ip y puerto engine, ip y puerto del kafka, ip y puerto de registry
-def main(): 
-    global SERVER_KAFKA
-    opcion = ""
-    while(opcion != "5"):
-        print("///////////////////////////////////////")
-        print("// BIENVENIDO AL ESPECTACULO         //")
-        print("//                                   //")
-        print("// Menu:                             //")
-        print("// 1. Editar dron                    //")
-        print("// 2. Crear dron                     //")
-        print("// 3. Entrar a la partida            //")
-        print("// 4. Retomar partida (desconexión)  //")
-        print("// 5. Salir                          //")
-        print("///////////////////////////////////////")
-        res = input("Introduce la opcion que quieras hacer: ")
-        # SERVER_KAFKA = sys.argv[2].split(":")[0] # Seria el 3
-        ## python3 player 10.0.0.2:3000 (kafka) 10.0.0.2:3002
-        opcion = res
-        if res == "1":
-            #Opcion 1 se conecta por sockets al registry
-            editUser(os.getenv("IP"), int(os.getenv("PORT")))
-        elif res == "2": 
-            token=registro(os.getenv("IP"), int(os.getenv("PORT")))
-            #Opcion 2 se conecta por sockets al registry
-        elif res == "3":
-            #Por sockets se conectan al engine pasandole alias + password
-            logearse(os.getenv("IP_ENGINE") , int(os.getenv("PORT_ENGINE")), )
-        elif res == "4":
-            ""
-            # alias = input("¿Cuál era tu alias?: ")
-            # iniciarKafka(alias)
+        self.iniciarKafka()
+        
+        
+        while(self.state != True):  
+            self.mapa = loads(self.consumer.value.decode('utf-8'))
+            self.producer.send(self.topicProductor, value=self.Movimiento())
+            self.printMap()
+            
+    
+    #Funcion que indica el movimimiento del dron. Si no se mueve indica que ha completado y actualiza el estado del dron
+    def Movimiento(self):
+        if self.finalx > self.x:
+            return self.id+':'+'E'
+        elif self.finalx < self.x:
+            return self.id+':'+'W'
+        else :
+            if self.finaly > self.y:
+                return self.id+':'+'N'
+            elif self.finaly < self.y:
+                return self.id+':'+'S'
+            else:
+                self.state = True
+                return self.id+':'+'COMPLETADO'
+
+
+            
+    # ip y puerto engine, ip y puerto del kafka, ip y puerto de registry
+    def main(self): 
+        opcion = ""
+        while(opcion != "5"):
+            print("///////////////////////////////////////")
+            print("// BIENVENIDO AL ESPECTACULO         //")
+            print("//                                   //")
+            print("// Menu:                             //")
+            print("// 1. Editar dron                    //")
+            print("// 2. Crear dron                     //")
+            print("// 3. Entrar a la partida            //")
+            print("// 4. Retomar partida (desconexión)  //")
+            print("// 5. Salir                          //")
+            print("///////////////////////////////////////")
+            res = input("Introduce la opcion que quieras hacer: ")
+            # SERVER_KAFKA = sys.argv[2].split(":")[0] # Seria el 3
+            ## python3 player 10.0.0.2:3000 (kafka) 10.0.0.2:3002
+            opcion = res
+            if res == "1":
+                #Opcion 1 se conecta por sockets al registry
+                self.editUser(os.getenv("IP"), int(os.getenv("PORT")))
+            elif res == "2": 
+                dron = self.registro(os.getenv("IP"), int(os.getenv("PORT")))
+                #Opcion 2 se conecta por sockets al registry
+            elif res == "3":
+                #Por sockets se conectan al engine pasandole alias + password
+                self.logearse(os.getenv("IP_ENGINE") , int(os.getenv("PORT_ENGINE")) , dron)
+            elif res == "4":
+                ""
+                # alias = input("¿Cuál era tu alias?: ")
+                # iniciarKafka(alias)
 
 
 
 if __name__ == "__main__":
-    main()
+    AD_Drone.main()
