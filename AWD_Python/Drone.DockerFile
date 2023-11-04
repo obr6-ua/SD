@@ -6,7 +6,7 @@ RUN pip install colorama
 RUN pip install kafka-python
 RUN pip install pymongo
 
-ADD Drone /opt/Drone
+ADD Drone .
 
 # sudo docker build -t nucleo -f Nucleo.DockerFile .
 # sudo docker run --net mynet --ip 127.0.0.3 -p 3000:3000 -it nucleo bin/sh

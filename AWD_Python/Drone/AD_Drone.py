@@ -7,24 +7,29 @@ import os
 
 # from colorama import Fore, Back, Style
 
+#docker-compose run -e ID=1 -p 4001:4000 drone
+
 FORMAT = 'utf-8'
 HEADER = 4096
 POSSIBLE_MOVES = ['w', 'a', 's', 'd', 'aw', 'wa', 'wd', 'dw', 'sd', 'ds', 'as', 'sa']
 
 def editUser(host, port):
     ADDR_REGISTRO = (host, port)
-    token = "a"
     try:
         client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         client.connect(ADDR_REGISTRO)
         print (f"Establecida conexión en [{ADDR_REGISTRO}]")
 
-        usuario = input("Alias antiguo: ")
-        user_info = (2, usuario)
+        
+        alias = input("Alias antiguo: ")
+        
+        id = os.getenv("ID")
+        
+        cadena = "1:"+id+":"+alias
+        
+        client.send(str(cadena).encode(FORMAT))
 
-        client.send(str(user_info))
-
-        recibido = client.recv(100)
+        recibido = client.recv(100).encode(FORMAT)
         respuesta = eval(recibido)
 
         if(respuesta[0] == -1):
@@ -32,15 +37,8 @@ def editUser(host, port):
             return
 
         else:
-            print(respuesta[1])
-            alias_new  = input("Alias nuevo: ")
-
-            msg = (alias_new)
-            client.send(str(msg))
-
-            respuesta = eval(client.recv(100))
-            print(respuesta[0])
-            token = respuesta[0]
+            
+            print('Nuevo alias asignado.')
     except Exception as e:
         print("Fallo con el servidor de Registry")
         print(e)
@@ -52,22 +50,18 @@ def registro(host, port):
         ADDR_REGISTRO = (host, port)
         client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         client.connect(ADDR_REGISTRO)
-
+        alias = input("Alias nuevo: ")
         print(f"Establecida conexión en [{ADDR_REGISTRO}]")
+        
+        id = os.getenv("ID")
+        
+        cadena = "1:"+id+":"+alias
 
+        client.send(cadena.encode(FORMAT))  #Enviar la solicitud codificada en bytes
 
-        client.send("1".encode(FORMAT))  # Enviar la solicitud codificada en bytes
+        respuesta = client.recv(HEADER).decode(FORMAT) #Recibir y decodificar la respuesta
 
-        respuesta = eval(client.recv(HEADER).decode(FORMAT))  # Recibir y decodificar la respuesta
-
-        if respuesta[0] == -1:
-            print(respuesta[1])
-        else:
-            print(respuesta[1])
-
-            # Recibir el mensaje del Registry
-            mensaje_del_registry = client.recv(100).decode(FORMAT)
-            print(f"He recibido el mensaje del Registry: {mensaje_del_registry}")
+        print(f"He recibido el mensaje del Registry: {respuesta}")
 
     except Exception as e:
         print("Error al conectar con el servidor de Registro")
@@ -87,18 +81,14 @@ def logearse(host, port):
         client.close()
         return
 
-    print (f"Establecida conexión en [{ADDR_log}]")
+    print (f"Establecida conexión en [{ADDR_log}]") 
 
     ## Confirmación conexión
-    recibido = client.recv(HEADER)
+    recibido = client.send(HEADER)
     msg = eval(recibido)
 
 
     if(msg[0] == 1):
-        alias = input("Introduce alias: ")
-
-        clientmsg = (alias)
-
         try:
             ## Enviar alias
             client.send(str(clientmsg))
@@ -226,7 +216,7 @@ def main():
             #Opcion 1 se conecta por sockets al registry
             editUser(os.getenv("IP"), int(os.getenv("PORT")))
         elif res == "2": 
-            registro(os.getenv("IP"), int(os.getenv("PORT")))
+            token=registro(os.getenv("IP"), int(os.getenv("PORT")))
             #Opcion 2 se conecta por sockets al registry
         elif res == "3":
             #Por sockets se conectan al engine pasandole alias + password

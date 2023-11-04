@@ -54,10 +54,10 @@ services:
       context: .
       dockerfile: Drone.DockerFile
     environment:
-      IP: 172.27.254.207
+      IP: 192.168.56.1
       PORT_ENGINE: 3001
       PORT: 3002
-    command: python opt/Drone/AD_Drone.py
+    command: python AD_Drone.py
     container_name: dron
   
   zookeeper:
