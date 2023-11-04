@@ -54,15 +54,15 @@ def registrarDron(alias, id , conn , coleccion):
     
     
 
-def editarDron(alias, conn):
+def editarDron(id, alias, conn , coleccion):
     
-    
-    
-    nuevos_valores = {
+    nuevo_valor = {
         "$set": {
-            "alias": "nuevo_valor"  # Agrega los campos y valores que deseas actualizar
+            "alias": alias # Agrega los campos y valores que deseas actualizar
         }
     }
+    
+    coleccion.update_one({"id": id}, nuevo_valor)
     
     conn.close()
 
@@ -82,7 +82,7 @@ def atenderPeticion(conn, addr):
         if info[0] == "1":
             registrarDron(info[1], info[2], conn , coleccion)
         elif info[0] == "2":
-            editarDron(info[1], info[2], conn , coleccion)
+            editarDron(info[1], info[3], conn , coleccion)
     except Exception as e:
         print("Se nos fue el cliente")
 

@@ -32,7 +32,7 @@ class AD_Drone:
         self.state = state
 
 
-    def editUser(self,host, port):
+    def editUser(self, host, port):
         ADDR_REGISTRO = (host, port)
         try:
             client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -40,13 +40,14 @@ class AD_Drone:
             print (f"Establecida conexión en [{ADDR_REGISTRO}]")
 
             alias = input("Alias antiguo: ")
+            alias2 = input("Nuevo alias: ")
 
-            cadena = "1:"+self.id+":"+alias
-            
-            client.send(str(cadena).encode(FORMAT))
+            cadena = "1:" + self.id + ":" + alias + ':' + alias2
 
-            self.alias = client.recv(HEADER).encode(FORMAT)
-                
+            client.send(cadena.encode(FORMAT))
+
+            self.alias = client.recv(HEADER).decode(FORMAT)
+
             print('Nuevo alias asignado.')
         except Exception as e:
             print("Fallo con el servidor de Registry")
@@ -62,17 +63,16 @@ class AD_Drone:
             self.alias = input("Alias nuevo: ")
             print(f"Establecida conexión en [{ADDR_REGISTRO}]")
 
-            
-            cadena = "1:"+self.id+":"+self.alias
+            cadena = "1:" + self.id + ":" + self.alias
 
-            client.send(cadena.encode(FORMAT)) 
+            client.send(cadena.encode(FORMAT))
 
-            token = client.recv(HEADER).decode(FORMAT) 
+            self.token = client.recv(HEADER).decode(FORMAT)
 
-            print(f"He recibido el mensaje del Registry: {token}")
+            print(f"He recibido el mensaje del Registry: {self.token}")
             
             
-            return 
+            return self
 
         except Exception as e:
             print("Error al conectar con el servidor de Registro")
@@ -111,27 +111,28 @@ class AD_Drone:
             print()
 
 
-    def logearse(self ,host, port):
-        ADDR_log = (host, port) 
+    def logearse(self, host, port):
+        ADDR_log = (host, port)
         client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         try:
             client.connect(ADDR_log)
+            print(self.token)
         except:
-            print("El servidor está desconectado o ya hay una partida en curso")
+            print("El servidor está desconectado.")
             client.close()
             return
 
-        print (f"Establecida conexión en [{ADDR_log}]")
-  
-        client.send(self.token.encode(FORMAT))
+        print(f"Establecida conexión en [{ADDR_log}]")
+
+        client.send(str(self.token).encode(FORMAT))
 
         recibido = client.recv(HEADER).decode(FORMAT)
-        
-        recibido.split(':')
-        
+
+        recibido = recibido.split(':')  # Corregir esta línea
+
         self.finalx = recibido[0]
         self.finaly = recibido[1]
-        
+
         self.iniciarKafka()
         
         
@@ -159,9 +160,9 @@ class AD_Drone:
 
             
     # ip y puerto engine, ip y puerto del kafka, ip y puerto de registry
-    def main(self): 
+    def main(self):
         opcion = ""
-        while(opcion != "5"):
+        while opcion != "5":
             print("///////////////////////////////////////")
             print("// BIENVENIDO AL ESPECTACULO         //")
             print("//                                   //")
@@ -173,24 +174,18 @@ class AD_Drone:
             print("// 5. Salir                          //")
             print("///////////////////////////////////////")
             res = input("Introduce la opcion que quieras hacer: ")
-            # SERVER_KAFKA = sys.argv[2].split(":")[0] # Seria el 3
-            ## python3 player 10.0.0.2:3000 (kafka) 10.0.0.2:3002
             opcion = res
             if res == "1":
-                #Opcion 1 se conecta por sockets al registry
                 self.editUser(os.getenv("IP"), int(os.getenv("PORT")))
-            elif res == "2": 
-                dron = self.registro(os.getenv("IP"), int(os.getenv("PORT")))
-                #Opcion 2 se conecta por sockets al registry
+            elif res == "2":
+                self.registro(os.getenv("IP"), int(os.getenv("PORT")))
             elif res == "3":
-                #Por sockets se conectan al engine pasandole alias + password
-                self.logearse(os.getenv("IP_ENGINE") , int(os.getenv("PORT_ENGINE")) , dron)
+                self.logearse(os.getenv("IP"), int(os.getenv("PORT_ENGINE")))
             elif res == "4":
-                ""
+                pass
                 # alias = input("¿Cuál era tu alias?: ")
                 # iniciarKafka(alias)
 
-
-
 if __name__ == "__main__":
-    AD_Drone.main()
+    drone = AD_Drone()
+    drone.main()

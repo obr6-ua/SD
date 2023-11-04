@@ -61,8 +61,8 @@ class AD_Engine:
 
         # Inicializamos la base de datos   "mongodb://localhost:27017"
         self.cliente = MongoClient(self.conexionBBDD) #self.conexionBBDD
-        self.bd = self.cliente['AWD']
-        self.coleccion1 = self.bd['ID-TOKEN']
+        self.bd = self.cliente['drones_db']
+        self.coleccion1 = self.bd['drones']
 
         try:
             # Ejecuta una consulta de prueba
@@ -93,35 +93,37 @@ class AD_Engine:
     def manageDrone(self, conn, addr, figuraActual):
         print(f"Nuevo dron {addr} conectado.")
         while True:
-            msg_length = conn.recv(4096).decode(FORMAT)
-            if msg_length:
-                msg_length = int(msg_length)
+            # Mensaje del dron a conectar
+            token = conn.recv(4096).decode(FORMAT)
+            
+            print(token)
+            
+            # Buscamos ese token en la bbdd
+            registro = self.coleccion1.find_one({"token": token})
+
+            #Si existe pillamos los datos del dron
+            if registro:
+                print("Token valido")
+
+                id = registro['id'] 
+                # Le mandamos al dron posicion x e y asignadas
+                primer_dron = figuraActual["Drones"].pop(0)
+                posx = primer_dron.get("Posicion X", None) 
+                posy = primer_dron.get("Posicion Y", None)
+                print(str(posx) + ":" + str(posy))
                 
-                # Mensaje del dron a conectar
-                token = conn.recv(msg_length).decode(FORMAT)
+                conn.send((str(posx) + ":" + str(posy)).encode(FORMAT))
                 
-                # Buscamos ese token en la bbdd
-                registro = self.coleccion1.find_one({"token": token})
+                
 
-                #Si existe pillamos los datos del dron
-                if registro:
-                    print("Token valido")
+                # Me guardo el id del dron que ha logrado registrarse correctamente
+                self.idsValidas.append(id)
+                conn.close()
 
-                    id = registro['_id'] 
-                    # Le mandamos al dron posicion x e y asignadas
-                    primer_dron = figuraActual["Drones"].pop(0)
-                    posx = primer_dron.get("Posicion X", None) 
-                    posy = primer_dron.get("Posicion Y", None)
-                    conn.send((posx + ":" + posy).encode(FORMAT))
-
-                    # Me guardo el id del dron que ha logrado registrarse correctamente
-                    self.idsValidas.append(id)
-                    conn.close()
-
-                else:
-                    print("No se encontró ningún registro para el dron con ID y token especificados")
-                    conn.send("FIN")
-                    conn.close()
+            else:
+                print("No se encontró ningún registro para el dron con ID y token especificados")
+                conn.send("FIN")
+                conn.close()
     
     def conectarDrones(self, figuraActual):
         self.sckServidor=socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -269,7 +271,7 @@ class AD_Engine:
 
                     # Empezar a mandar y recibir mensajes por kafka
                     self.startKafka()
-                    figura["completada"] = True
+                    figura["Completada"] = True
                 else:
                     os.sleep(10)
                     print("No hay mas figuras, mandando drones a base")
