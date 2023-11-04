@@ -8,20 +8,19 @@ import keyboard
 from pymongo import MongoClient
 from kafka import KafkaConsumer
 from kafka import KafkaProducer
-from random import randint
-#from json import loads
+#from random import randint
+from json import loads
 
 JSON = "AwD_figuras.json"
 KTAMANYO = 20
 
 # La clase Figuras almacena los datos de las figuras llegados desde el JSON
 class Figuras:
-    def __init__(self, archivo):
-        self.completada = False
-        self.listaFiguras = self.leer_desde_json(archivo)
+    def __init__(self, JSON):
+        self.listaFiguras = self.leer_desde_json(JSON)
 
-    def leer_desde_json(self, archivo):
-        with open(archivo, "r") as archivo_json:
+    def leer_desde_json(self, JSON):
+        with open(JSON, "r") as archivo_json:
             datos = json.load(archivo_json)
 
         self.listaFiguras = []
@@ -38,7 +37,7 @@ class Figuras:
 
                 self.drones_lista.append({"ID": id_drone, "Posicion X": posicion_x, "Posicion Y": posicion_y})
 
-            figura = {"Nombre": nombre_figura, "Drones": self.drones_lista}
+            figura = {"Nombre": nombre_figura, "Drones": self.drones_lista, "Completada": False}
             self.listaFiguras.append(figura)
 
         return self.listaFiguras
@@ -47,8 +46,8 @@ class AD_Engine:
 
     def __init__(self):
         self.puerto_escucha = os.getenv('PUERTO_ESCUCHA')
-        self.conexionBBDD = os.getenv('IP_BBDD') + ":" + os.getenv('PUERTO_BBDD')
-        self.boostrap_server = os.getenv('IP_SERVER_GESTOR') + ":" +os.getenv('PUERTO_SERVER_GESTOR')
+        self.conexionBBDD = "mongodb://" + os.getenv('IP_BBDD') + ":" + os.getenv('PUERTO_BBDD')
+        self.boostrap_server = os.getenv('IP_SERVER_GESTOR') + ":" + os.getenv('PUERTO_SERVER_GESTOR')
         self.topicConsumidor = os.getenv('TOPIC_CONSUMIDOR')
         self.topicProductor =  os.getenv('TOPIC_PRODUCROR')
         self.ipEngine = os.getenv('IP_ENGINE')
@@ -57,11 +56,22 @@ class AD_Engine:
         self.idsValidas = []
         # Creamos mapa 20x20 vacio
         self.mapa = [["" for _ in range(KTAMANYO)] for _ in range(KTAMANYO)]
+        self.figuras = []
 
-        # Inicializamos la base de datos
-        cliente = MongoClient(self.conexionBBDD)
+        # Inicializamos la base de datos   "mongodb://localhost:27017"
+        self.cliente = MongoClient(self.conexionBBDD) #self.conexionBBDD
         self.bd = self.cliente['AWD']
         self.coleccion1 = self.bd['ID-TOKEN']
+
+        try:
+            # Ejecuta una consulta de prueba
+            info = self.cliente.server_info()
+            print("Conexión exitosa a MongoDB")
+            print("Versión de MongoDB:", info["version"])
+            print()
+        except Exception:
+            print("No se pudo conectar a MongoDB. Verifica la configuración de conexión.")
+            print()
         
         # Creamos consumidor
         self.consumer = KafkaConsumer(
@@ -69,12 +79,10 @@ class AD_Engine:
         bootstrap_servers=[self.boostrap_server],
         auto_offset_reset='earliest',
         enable_auto_commit=True,
-        group_id='engine',
-        value_serializer=lambda x: json.dumps(x).encode('utf-8'))
+        group_id='engine')
 
         # Creamos productor
-        self.producer = KafkaProducer(bootstrap_servers=[self.boostrap_server], 
-                                      value_serializer=lambda x: json.dumps(x).encode('utf-8'))
+        self.producer = KafkaProducer(bootstrap_servers=[self.boostrap_server])
         
         # Cleamos el socket al servidor del clima
         self.sckClima = socket.socket()
@@ -118,10 +126,11 @@ class AD_Engine:
     
     def conectarDrones(self, figuraActual):
         self.sckServidor=socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.sckServidor.bind((self.ipEngine, self.puerto_escucha))
+        self.sckServidor.bind((self.ipEngine, int(self.puerto_escucha)))
         self.sckServidor.listen(20)
         CONEX_ACTIVAS = threading.active_count()-1
 
+        print("AD_Engine a la espera de que los drones se conecten.")
         while True:
             conn, addr = self.sckServidor.accept()
             CONEX_ACTIVAS = threading.active_count()
@@ -143,13 +152,14 @@ class AD_Engine:
         print()
 
         # Imprimir la matriz con los números de fila en el borde izquierdo
-        for i in range(1, KTAMANYO + 1):
+        for i in range(1, KTAMANYO):
             # Imprimir el número de fila en el borde izquierdo
             print(f"{i:3} ", end="")
 
             # Imprimir espacio en blanco en lugar de los valores de la matriz
-            for _ in range(KTAMANYO):
-                print(self.mapa[j][i])
+            for j in range(1, KTAMANYO):
+                elemento = self.mapa[i][j]
+                print(f"{elemento:4}", end=" ")
             print()
     
     def buscarId(self, id):
@@ -187,10 +197,9 @@ class AD_Engine:
         drones_completados = 0
         
         # Nos conectamos al server del clima
-        self.sckClima.connect((self.ipClima, self.puertoClima))
+        self.sckClima.connect((self.ipClima, int(self.puertoClima)))
         ciudad = self.sckClima.recv(4096).decode('utf-8')
         
-        clima = randint(0, len(self.listaCiudades)-1)
         while drones_completados < self.idsValidas and ciudad["temperatura"] > 0:
             # Mostrar mapa
             self.printMap()
@@ -211,65 +220,62 @@ class AD_Engine:
                     # Actualizar mapa
                     self.updateMap(id, mov)
             ciudad = self.sckClima.recv(4096).decode('utf-8')
-            if clima < 0:
+            if ciudad["temperatura"] < 0:
                 print("“CONDICIONES CLIMATICAS ADVERSAS. ESPECTACULO FINALIZADO")
                 self.sckClima.close()
                 self.salir()
 
     def nuevoEspectaculo(self):
+        self.printMap()
+        # Reseteo informacion guardada
+        # Pongo todas las figuras sin completar
+        for figura in self.figuras:
+            figura["Completada"] = False
+            
+        # Borro los datos de registro de los drones de bbdd
+        self.coleccion1.delete_many({})
+
+        # Borro registro de ids validas
+        self.idsValidas.clear()
+            
+        # Almacenamos datos de las figuras
         while True:
-            # Verifica si la tecla Escape (Esc) ha sido presionada
-            if keyboard.is_pressed('esc') == 0:
-                # Reseteo informacion guardada
-                # Pongo todas las figuras sin completar
-                for figura in self.figuras:
-                    figura.estado = False
-                
-                # Borro los datos de registro de los drones de bbdd
-                self.coleccion1.delete_many({})
+            if os.path.exists(JSON) and os.path.getsize(JSON) > 0:
+                break
+            print(f"Esperando a que el archivo {JSON} contenga datos...")
+            time.sleep(1)
 
-                # Borro registro de ids validas
-                self.idsValidas.clear()
-                
-                # Almacenamos datos de las figuras
-                while True:
-                    if os.path.exists(JSON) and os.path.getsize(JSON) > 0:
-                        break
-                    print(f"Esperando a que el archivo {JSON} contenga datos...")
-                    time.sleep(1)
+        print(f"El archivo {JSON} contiene datos. Procesando...")
 
-                print(f"El archivo {JSON} contiene datos. Procesando...")
+        self.figuras = Figuras(JSON).listaFiguras
 
-                self.figuras = Figuras(JSON).listaFiguras
+        print(f"El archivo {JSON} ha sido procesado.")
 
-                while True:
-                    # Cuantos drones necesita la figura a realizar
-                    for figura in self.figuras:
-                        if figura.completada == False:
-                            self.dronesNecesarios = len(figura.drones_lista)
-                            figuraActual = figura
+        while True:
+            # Cuantos drones necesita la figura a realizar
+            for figura in self.figuras:
+                if figura["Completada"] == False:
+                    self.dronesNecesarios = len(figura["Drones"])
+                    figuraActual = figura
 
-                            # Conectar nuevos drones
-                            self.conectarDrones(figuraActual)
+                    # Conectar nuevos drones
+                    self.conectarDrones(figuraActual)
 
-                            # Borrar mapa
-                            self.mapa = [["" for _ in range(KTAMANYO)] for _ in range(KTAMANYO)]
+                    # Borrar mapa
+                    self.mapa = [["" for _ in range(KTAMANYO)] for _ in range(KTAMANYO)]
 
-                            # Poner todas las ids en la posicion 0
-                            self.mapa[0][0] = "/".join([f"\x1b[31m" + str(id) + "\x1b[0m" for id in self.idsValidas])
+                    # Poner todas las ids en la posicion 0
+                    self.mapa[0][0] = "/".join([f"\x1b[31m" + str(id) + "\x1b[0m" for id in self.idsValidas])
 
-                            # Empezar a mandar y recibir mensajes por kafka
-                            self.startKafka()
-                            figura.completada = True
-                        else:
-                            os.sleep(10)
-                            print("No hay mas figuras, mandando drones a base")
-                            self.mapa[0][0] = "/".join([f"\x1b[31m" + str(id) + "\x1b[0m" for id in self.idsValidas])
-                            self.printMap()
-                            self.start()
-            else:
-                print("Tecla Escape presionada. Saliendo del espectaculo.")
-                self.start()
+                    # Empezar a mandar y recibir mensajes por kafka
+                    self.startKafka()
+                    figura["completada"] = True
+                else:
+                    os.sleep(10)
+                    print("No hay mas figuras, mandando drones a base")
+                    self.mapa[0][0] = "/".join([f"\x1b[31m" + str(id) + "\x1b[0m" for id in self.idsValidas])
+                    self.printMap()
+                    self.start()
     
     def salir(self):
         print("Saliendo del espectaculo...")
@@ -286,7 +292,7 @@ class AD_Engine:
     def menu(self):
         print("AD_ENGINE MENU PRINCIPAL")
         print("Elige una opcion:")
-        print("1. Nuevo espectaculo (para salir pulsa esc)")
+        print("1. Nuevo espectaculo")
         print("2. Cargar ultimo espectaculo")
         print("3. Salir")
         opcion = input("Ingresa el número de la opción que deseas: ")

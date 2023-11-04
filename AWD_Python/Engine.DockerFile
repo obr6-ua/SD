@@ -4,6 +4,8 @@ RUN apk add python3
 RUN apk add py3-pip
 RUN pip install colorama
 RUN pip install kafka-python
+RUN pip install keyboard
+RUN pip install pymongo
 
 ADD Engine /opt/Engine
 

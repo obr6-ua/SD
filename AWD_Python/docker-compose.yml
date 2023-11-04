@@ -8,7 +8,7 @@ services:
       PUERTO: 3000
     container_name: clima
     working_dir: /opt/Clima
-    command: python3 AA_Weather.py
+    command: python /opt/Clima/AD_Weather.py
 
   engine:
     build:
@@ -19,10 +19,10 @@ services:
     container_name: engine
     command: sleep infinity
     environment:
-      IP_BBDD: 172.27.254.207
-      IP_CLIMA: 172.27.254.207
-      IP_SERVER_GESTOR: 172.27.254.207
-      IP_ENGINE: 172.27.254.207
+      IP_BBDD: 192.168.0.18
+      IP_CLIMA: 192.168.0.18
+      IP_SERVER_GESTOR: 192.168.0.18
+      IP_ENGINE: 0.0.0.0
       PUERTO_SERVER_GESTOR: 9092
       PUERTO_ESCUCHA: 3001
       PUERTO_BBDD: 27017

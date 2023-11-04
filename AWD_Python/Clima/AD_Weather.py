@@ -17,10 +17,10 @@ def main():
     puerto = os.getenv('PUERTO')
 
     socketClima = socket.socket()
-    socketClima.bind((HOST, puerto))
+    socketClima.bind((HOST, int(puerto)))
     socketClima.listen(1)
 
-    ciudades = cargarCiudades("ciudaddes.json")
+    ciudades = cargarCiudades("ciudades.json")
 
     while True:
         conexion, addr = socketClima.accept()
