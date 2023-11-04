@@ -109,10 +109,9 @@ class AD_Engine:
                     print("ID y Token validos")
 
                     # Le mandamos al dron posicion x e y asignadas
-                    for dron in figuraActual.drones_lista:
-                        primer_dron = dron.pop(0)
-                        posx = primer_dron.get("Posicion X", None) 
-                        posy = primer_dron.get("Posicion Y", None)
+                    primer_dron = figuraActual.drones_lista.pop(0)
+                    posx = primer_dron.get("Posicion X", None) 
+                    posy = primer_dron.get("Posicion Y", None)
                     conn.send(posx + ":" + posy)
 
                     # Me guardo el id del dron que ha logrado registrarse correctamente
