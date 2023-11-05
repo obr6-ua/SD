@@ -4,7 +4,7 @@ import json
 
 from random import randint
 
-HOST = 'localhost'
+HOST = '0.0.0.0'
 
 def cargarCiudades(path):
     with open(path) as file:
@@ -26,8 +26,8 @@ def main():
         conexion, addr = socketClima.accept()
         print("AD_Engine conectado.")
 
-        ciudad = ciudades[randint(0, len(ciudades)-1)]
+        ciudad = ciudades[randint(0, len(ciudades) - 1)]
+        ciudad_json = json.dumps(ciudad)  # Convierte la ciudad en una cadena JSON válida
 
-        conexion.send(str(ciudad).encode('utf-8'))
-
+        conexion.send(ciudad_json.encode('utf-8'))
 main()

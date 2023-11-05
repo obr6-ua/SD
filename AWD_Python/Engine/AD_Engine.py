@@ -83,7 +83,8 @@ class AD_Engine:
             group_id='engine')
 
         # Creamos productor
-        self.producer = KafkaProducer(bootstrap_servers=[self.boostrap_server])
+        self.producer = KafkaProducer(bootstrap_servers=[self.boostrap_server],value_serializer=lambda x: 
+                         json.dumps(x).encode('utf-8'))
         
         # Cleamos el socket al servidor del clima
         self.sckClima = socket.socket()
@@ -127,7 +128,7 @@ class AD_Engine:
 
         else:
             print("No se encontró ningún registro para el dron con ID y token especificados")
-            conn.send("FIN")
+            print("FIN")
             conn.close()
     
     def conectarDrones(self, figuraActual):
@@ -137,19 +138,18 @@ class AD_Engine:
         CONEX_ACTIVAS = threading.active_count()-1
 
         print("AD_Engine a la espera de que los drones se conecten.")
-        while True:
-            conn, addr = self.sckServidor.accept()
-            CONEX_ACTIVAS = threading.active_count()
+        conn, addr = self.sckServidor.accept()
+        CONEX_ACTIVAS = threading.active_count()
 
-            if (CONEX_ACTIVAS <= self.dronesNecesarios): 
-                thread = threading.Thread(target=self.manageDrone, args=(conn, addr, figuraActual))
-                thread.start()
-    
-            else:
-                print("OOppsss... DEMASIADAS CONEXIONES. ESPERANDO A QUE ALGUIEN SE VAYA")
-                conn.send("OOppsss... DEMASIADAS CONEXIONES. Tendrás que esperar a que alguien se vaya")
-                conn.close()
-                CONEX_ACTUALES = threading.active_count()-1
+        if (CONEX_ACTIVAS <= self.dronesNecesarios): 
+            thread = threading.Thread(target=self.manageDrone, args=(conn, addr, figuraActual))
+            thread.start()
+
+        else:
+            print("OOppsss... DEMASIADAS CONEXIONES. ESPERANDO A QUE ALGUIEN SE VAYA")
+            conn.send("OOppsss... DEMASIADAS CONEXIONES. Tendrás que esperar a que alguien se vaya")
+            conn.close()
+            CONEX_ACTUALES = threading.active_count()-1
     
     def printMap(self):
         print("   ", end="")
@@ -202,10 +202,10 @@ class AD_Engine:
     def startKafka(self):
         drones_completados = 0
         
+        print((self.ipClima, int(self.puertoClima)))
         # Nos conectamos al server del clima
         self.sckClima.connect((self.ipClima, int(self.puertoClima)))
-        ciudad = self.sckClima.recv(4096).decode('utf-8')
-        
+        ciudad = json.loads(self.sckClima.recv(4096).decode('utf-8'))
         while drones_completados < self.dronesNecesarios and ciudad["temperatura"] > 0:
             # Mostrar mapa
             self.printMap()
@@ -226,7 +226,7 @@ class AD_Engine:
                     id, mov = valor.split(":")
                     # Actualizar mapa
                     self.updateMap(id, mov)
-            ciudad = self.sckClima.recv(4096).decode('utf-8')
+            ciudad = json.loads(self.sckClima.recv(4096).decode('utf-8'))
             if ciudad["temperatura"] < 0:
                 print("“CONDICIONES CLIMATICAS ADVERSAS. ESPECTACULO FINALIZADO")
                 self.sckClima.close()

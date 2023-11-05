@@ -4,7 +4,9 @@ services:
     build:
       context: .
       dockerfile: Clima.DockerFile
-    environment:
+    ports:
+      - "3000:3000"
+    environment: 
       PUERTO: 3000
     container_name: clima
     working_dir: /opt/Clima
