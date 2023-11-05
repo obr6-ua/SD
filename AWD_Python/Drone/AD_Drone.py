@@ -136,10 +136,14 @@ class AD_Drone:
         self.iniciarKafka()
         
         
-        while(self.state != True):  
-            self.mapa = loads(self.consumer.value.decode('utf-8'))
-            self.producer.send(self.topicProductor, value=self.Movimiento())
-            self.printMap()
+        while not self.state:
+            print('Esperando mensaje del engine') 
+            for message in self.consumer:
+                print('Lo tengo')
+                data = json.loads(message.value.decode('utf-8'))
+                self.mapa = data
+                self.producer.send(self.topicProductor, value=self.Movimiento())
+                self.printMap()
             
     
     #Funcion que indica el movimimiento del dron. Si no se mueve indica que ha completado y actualiza el estado del dron

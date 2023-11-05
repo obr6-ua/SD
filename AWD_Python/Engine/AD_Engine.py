@@ -92,38 +92,37 @@ class AD_Engine:
     
     def manageDrone(self, conn, addr, figuraActual):
         print(f"Nuevo dron {addr} conectado.")
-        while True:
-            # Mensaje del dron a conectar
-            token = conn.recv(4096).decode(FORMAT)
+        # Mensaje del dron a conectar
+        token = conn.recv(4096).decode(FORMAT)
+        
+        print(token)
+        
+        # Buscamos ese token en la bbdd
+        registro = self.coleccion1.find_one({"token": token})
+
+        #Si existe pillamos los datos del dron
+        if registro:
+            print("Token valido")
+
+            id = registro['id'] 
+            # Le mandamos al dron posicion x e y asignadas
+            primer_dron = figuraActual["Drones"].pop(0)
+            posx = primer_dron.get("Posicion X", None) 
+            posy = primer_dron.get("Posicion Y", None)
+            print(str(posx) + ":" + str(posy))
             
-            print(token)
+            conn.send((str(posx) + ":" + str(posy)).encode(FORMAT))
             
-            # Buscamos ese token en la bbdd
-            registro = self.coleccion1.find_one({"token": token})
+            
 
-            #Si existe pillamos los datos del dron
-            if registro:
-                print("Token valido")
+            # Me guardo el id del dron que ha logrado registrarse correctamente
+            self.idsValidas.append(id)
+            conn.close()
 
-                id = registro['id'] 
-                # Le mandamos al dron posicion x e y asignadas
-                primer_dron = figuraActual["Drones"].pop(0)
-                posx = primer_dron.get("Posicion X", None) 
-                posy = primer_dron.get("Posicion Y", None)
-                print(str(posx) + ":" + str(posy))
-                
-                conn.send((str(posx) + ":" + str(posy)).encode(FORMAT))
-                
-                
-
-                # Me guardo el id del dron que ha logrado registrarse correctamente
-                self.idsValidas.append(id)
-                conn.close()
-
-            else:
-                print("No se encontró ningún registro para el dron con ID y token especificados")
-                conn.send("FIN")
-                conn.close()
+        else:
+            print("No se encontró ningún registro para el dron con ID y token especificados")
+            conn.send("FIN")
+            conn.close()
     
     def conectarDrones(self, figuraActual):
         self.sckServidor=socket.socket(socket.AF_INET, socket.SOCK_STREAM)
