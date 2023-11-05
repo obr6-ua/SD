@@ -113,7 +113,13 @@ class AD_Engine:
             
             conn.send((str(posx) + ":" + str(posy)).encode(FORMAT))
             
-            
+            # Verificar si ya hay una ID en la posición 0
+            if self.mapa[1][1]:
+                # Si ya hay una ID, la concatenamos con la nueva ID utilizando "/"
+                self.mapa[1][1] += f"/\x1b[31m" + id + "\x1b[0m"
+            else:
+                 # Si no hay una ID en la posición 0, simplemente asignamos la nueva ID en rojo
+                self.mapa[1][1] = f"\x1b[31m" + id + "\x1b[0m"
 
             # Me guardo el id del dron que ha logrado registrarse correctamente
             self.idsValidas.append(id)
@@ -200,7 +206,7 @@ class AD_Engine:
         self.sckClima.connect((self.ipClima, int(self.puertoClima)))
         ciudad = self.sckClima.recv(4096).decode('utf-8')
         
-        while drones_completados < self.idsValidas and ciudad["temperatura"] > 0:
+        while drones_completados < self.dronesNecesarios and ciudad["temperatura"] > 0:
             # Mostrar mapa
             self.printMap()
             matriz_serializada = json.dumps(self.mapa).encode('utf-8')
@@ -238,6 +244,9 @@ class AD_Engine:
 
         # Borro registro de ids validas
         self.idsValidas.clear()
+
+        # Borrar mapa
+        self.mapa = [["" for _ in range(KTAMANYO)] for _ in range(KTAMANYO)]
             
         # Almacenamos datos de las figuras
         while True:
@@ -261,12 +270,6 @@ class AD_Engine:
 
                     # Conectar nuevos drones
                     self.conectarDrones(figuraActual)
-
-                    # Borrar mapa
-                    self.mapa = [["" for _ in range(KTAMANYO)] for _ in range(KTAMANYO)]
-
-                    # Poner todas las ids en la posicion 0
-                    self.mapa[0][0] = "/".join([f"\x1b[31m" + str(id) + "\x1b[0m" for id in self.idsValidas])
 
                     # Empezar a mandar y recibir mensajes por kafka
                     self.startKafka()
