@@ -209,9 +209,10 @@ class AD_Engine:
         while drones_completados < self.dronesNecesarios and ciudad["temperatura"] > 0:
             # Mostrar mapa
             self.printMap()
-            matriz_serializada = json.dumps(self.mapa).encode('utf-8')
+            #matriz_serializada = json.dumps(self.mapa).encode('utf-8')
             # Mandar mapa por kafka
-            self.producer.send(self.topicProductor, value=matriz_serializada)
+            self.producer.send(self.topicProductor, value=self.mapa) #matriz_serializada
+            print("Mapa mandado por Kafka")
             # Recibir mensajes kafka
             for mensaje in self.consumer:
                 valor = mensaje.value  # Obtiene el valor del mensaje
@@ -240,7 +241,7 @@ class AD_Engine:
             figura["Completada"] = False
             
         # Borro los datos de registro de los drones de bbdd
-        self.coleccion1.delete_many({})
+        # self.coleccion1.delete_many({})
 
         # Borro registro de ids validas
         self.idsValidas.clear()

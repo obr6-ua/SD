@@ -1,6 +1,7 @@
 from kafka import KafkaConsumer, KafkaProducer
 from multiprocessing import Process
 from json import loads
+import json
 
 import sys
 import socket
@@ -88,10 +89,13 @@ class AD_Drone:
             bootstrap_servers=[kafka],
             auto_offset_reset='earliest',
             enable_auto_commit=True,
-            group_id='drones')
+            group_id='drones',
+            value_deserializer=lambda x: loads(x.decode('utf-8')))
 
         # Creamos productor
-        self.producer = KafkaProducer(bootstrap_servers=[kafka])
+        self.producer = KafkaProducer(bootstrap_servers=[kafka],
+                                    value_serializer=lambda x: 
+                                    json.dumps(x).encode('utf-8'))
 
     def printMap(self):
         print("   ", end="")
@@ -140,8 +144,8 @@ class AD_Drone:
             print('Esperando mensaje del engine') 
             for message in self.consumer:
                 print('Lo tengo')
-                data = json.loads(message.value.decode('utf-8'))
-                self.mapa = data
+                #data = json.loads(message.value.decode('utf-8'))
+                self.mapa = message.value #data
                 self.producer.send(self.topicProductor, value=self.Movimiento())
                 self.printMap()
             
