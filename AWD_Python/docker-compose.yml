@@ -6,7 +6,7 @@ services:
       dockerfile: Clima.DockerFile
     ports:
       - "3000:3000"
-    environment: 
+    environment:
       PUERTO: 3000
     container_name: clima
     working_dir: /opt/Clima
@@ -25,7 +25,7 @@ services:
       IP_CLIMA: 192.168.100.69
       IP_SERVER_GESTOR: 192.168.100.69
       IP_ENGINE: 0.0.0.0
-      PUERTO_SERVER_GESTOR: 9092
+      PUERTO_SERVER_GESTOR: 29092
       PUERTO_ESCUCHA: 3001
       PUERTO_BBDD: 27017
       PUERTO_CLIMA: 3000
@@ -59,20 +59,20 @@ services:
       IP: 192.168.100.69
       PORT_ENGINE: 3001
       PORT: 3002
-      PORT_KAFKA: 9092
+    PORT_KAFKA: 29092
 
     command: python AD_Drone.py
     container_name: dron
-
+  
   zookeeper:
     image: confluentinc/cp-zookeeper:latest
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
     ports:
-      - 22181:2181
+      - 2181:2181
     container_name: zookeeper
-  
+    
   kafka:
     image: confluentinc/cp-kafka:latest
     depends_on:
@@ -87,6 +87,6 @@ services:
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
     container_name: kafka
-
+    
 
 
