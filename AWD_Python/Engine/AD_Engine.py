@@ -230,7 +230,9 @@ class AD_Engine:
                     # Actualizar mapa
                     self.updateMap(id, posx, posy, mov)
                     self.printMap()
-                    time.sleep(1)    
+                    time.sleep(1)
+                    mapa_serializado = [[str(item) for item in row] for row in self.mapa]   
+                    self.producer.send(self.topicProductor, value=mapa_serializado) 
                     ciudad = json.loads(self.sckClima.recv(4096).decode(FORMAT))
                 
 

@@ -2,7 +2,7 @@ from kafka import KafkaConsumer, KafkaProducer
 from multiprocessing import Process
 from json import loads
 import json
-
+import time
 import sys
 import socket
 import os
@@ -147,6 +147,7 @@ class AD_Drone:
                     self.mapa = message.value
                     self.producer.send(self.topicProductor, value=self.Movimiento().encode('utf-8'))
                     self.printMap()
+                    time.sleep(10)
             except StopIteration:
                 print('No hay más mensajes disponibles en el tópico de Kafka.')
             except Exception as e:
