@@ -165,7 +165,10 @@ class AD_Engine:
                 print(f"{elemento:4}", end=" ")
             print()
 
-    def updateMap(self, posx, posy, mov):
+    def updateMap(self, p_posx, p_posy, mov):
+        posx = int(p_posx)
+        posy = int(p_posy)
+
         if mov == 'S':
             if self.mapa[posx][posy-1]:
                 self.mapa[posx][posy-1] = self.mapa[posx][posy-1] + "/" + "\033[91m" + str(id) + "\033[0m"
@@ -175,13 +178,14 @@ class AD_Engine:
             if self.mapa[posx][posy+1]:
                 self.mapa[posx][posy+1] = self.mapa[posx][posy+1] + "/" + "\033[91m" + str(id) + "\033[0m"
             else:
-                self.mapa[posx][posy+1] = "\033[91m{id}\033[0m"
+                self.mapa[posx][posy+1] = "\033[91m" + str(id) + "\033[0m"
         elif mov == 'W':
             if self.mapa[posx-1][posy]:
                 self.mapa[posx][posy-1] = self.mapa[posx][posy-1] + "/" + "\033[91m" + str(id) + "\033[0m"
             else:
                 self.mapa[posx][posy-1] = "\033[91m" + str(id) + "\033[0m"
         else:
+            print("aqui")
             if self.mapa[posx+1][posy]:
                 self.mapa[posx][posy+1] = self.mapa[posx][posy+1] + "/" + "\033[91m" + str(id) + "\033[0m"
             else:
@@ -217,13 +221,16 @@ class AD_Engine:
                     id, posx, posy, mov = valor.split(":")
                     print(id + " " + mov)
                     # Actualizar mapa
-                    self.updateMap(id, posx, posy, mov)
-            ciudad = json.loads(self.sckClima.recv(4096).decode(FORMAT))
-            if ciudad.get('temperatura') < 0:
-                self.printMap()
-                print("“CONDICIONES CLIMATICAS ADVERSAS. ESPECTACULO FINALIZADO")
-                self.sckClima.close()
-                self.salir()
+                    self.updateMap(posx, posy, mov)
+                    self.printMap()
+                    time.sleep(1)    
+                    ciudad = json.loads(self.sckClima.recv(4096).decode(FORMAT))
+                    print("Adios")
+                    if ciudad.get('temperatura') < 0:
+                        self.printMap()
+                        print("“CONDICIONES CLIMATICAS ADVERSAS. ESPECTACULO FINALIZADO")
+                        self.sckClima.close()
+                        self.salir()
 
     def nuevoEspectaculo(self):
         self.printMap()

@@ -135,6 +135,9 @@ class AD_Drone:
         self.finalx = int(recibido[0])
         self.finaly = int(recibido[1])
 
+        self.actualx = self.finalx
+        self.actualy = self.finaly
+
         self.iniciarKafka()
         
         
@@ -157,17 +160,21 @@ class AD_Drone:
     def Movimiento(self):
 
         if self.finalx > self.x:
-            return self.id+':'+'E'
+            self.actualx += 1
+            return str(self.id) + ":" + str(self.actualx) + ":" + str(self.actualy) +':'+'E'
         elif self.finalx < self.x:
-            return self.id+':'+'W'
+            self.actualx -= 1
+            return  str(self.id) + ":" + str(self.actualx) + ":" + str(self.actualy)+':'+'W'
         else :
             if self.finaly > self.y:
-                return self.id+':'+'N'
+                self.actualy += 1
+                return  str(self.id) + ":" + str(self.actualx) + ":" + str(self.actualy)+':'+'N'
             elif self.finaly < self.y:
-                return self.id+':'+'S'
+                self.actualy -= 1
+                return  str(self.id) + ":" + str(self.actualx) + ":" + str(self.actualy)+':'+'S'
             else:
                 self.state = True
-                return self.id+':'+'COMPLETADO'
+                return  str(self.id) + ":" + str(self.actualx) + ":" + str(self.actualy) +':'+'COMPLETADO'
 
 
             
