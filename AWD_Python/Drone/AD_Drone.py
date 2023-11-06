@@ -135,9 +135,6 @@ class AD_Drone:
         self.finalx = int(recibido[0])
         self.finaly = int(recibido[1])
 
-        self.actualx = self.finalx
-        self.actualy = self.finaly
-
         self.iniciarKafka()
         
         
@@ -161,21 +158,21 @@ class AD_Drone:
         aux1 = self.x
         aux2 = self.y
         if self.finalx > self.x:
-            self.actualx += 1
-            return str(self.id) + ":" + str(self.actualx) + ":" + str(self.actualy) +':'+'E'
+            self.x += 1
+            return str(self.id) + ":" + str(self.x) + ":" + str(self.y) +':'+'E'
         elif self.finalx < self.x:
-            self.actualx -= 1
-            return  str(self.id) + ":" + str(self.actualx) + ":" + str(self.actualy)+':'+'W'
+            self.x -= 1
+            return  str(self.id) + ":" + str(self.x) + ":" + str(self.y)+':'+'W'
         else :
             if self.finaly > self.y:
-                self.actualy += 1
-                return  str(self.id) + ":" + str(self.actualx) + ":" + str(self.actualy)+':'+'N'
+                self.y += 1
+                return  str(self.id) + ":" + str(self.x) + ":" + str(self.y)+':'+'N'
             elif self.finaly < self.y:
-                self.actualy -= 1
-                return  str(self.id) + ":" + str(self.actualx) + ":" + str(self.actualy)+':'+'S'
+                self.y -= 1
+                return  str(self.id) + ":" + str(self.x) + ":" + str(self.x)+':'+'S'
             else:
                 self.state = True
-                return  str(self.id) + ":" + str(self.actualx) + ":" + str(self.actualy) +':'+'COMPLETADO'
+                return  str(self.id) + ":" + str(self.y) + ":" + str(self.y) +':'+'COMPLETADO'
 
 
             
