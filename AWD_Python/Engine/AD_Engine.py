@@ -165,7 +165,7 @@ class AD_Engine:
                 print(f"{elemento:4}", end=" ")
             print()
 
-    def updateMap(self, p_posx, p_posy, mov):
+    def updateMap(self, id, p_posx, p_posy, mov):
         posx = int(p_posx)
         posy = int(p_posy)
 
@@ -181,13 +181,13 @@ class AD_Engine:
                 self.mapa[posx][posy+1] = "\033[91m" + str(id) + "\033[0m"
         elif mov == 'W':
             if self.mapa[posx-1][posy]:
-                self.mapa[posx][posy-1] = self.mapa[posx][posy-1] + "/" + "\033[91m" + str(id) + "\033[0m"
+                self.mapa[posx-1][posy] = self.mapa[posx-1][posy] + "/" + "\033[91m" + str(id) + "\033[0m"
             else:
                 self.mapa[posx][posy-1] = "\033[91m" + str(id) + "\033[0m"
         else:
             print("aqui")
             if self.mapa[posx+1][posy]:
-                self.mapa[posx][posy+1] = self.mapa[posx][posy+1] + "/" + "\033[91m" + str(id) + "\033[0m"
+                self.mapa[posx+1][posy] = self.mapa[posx+1][posy] + "/" + "\033[91m" + str(id) + "\033[0m"
             else:
                 self.mapa[posx][posy+1] = "\033[91m" + str(id) + "\033[0m"
 
@@ -221,7 +221,7 @@ class AD_Engine:
                     id, posx, posy, mov = valor.split(":")
                     print(id + " " + mov)
                     # Actualizar mapa
-                    self.updateMap(posx, posy, mov)
+                    self.updateMap(id, posx, posy, mov)
                     self.printMap()
                     time.sleep(1)    
                     ciudad = json.loads(self.sckClima.recv(4096).decode(FORMAT))
