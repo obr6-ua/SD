@@ -71,7 +71,7 @@ def atenderPeticion(conn, addr):
         info = conn.recv(HEADER).decode(FORMAT)  # Decodificar el mensaje recibido
         info.split(':')
         
-        client = MongoClient("mongodb://192.168.0.18:27017")
+        client = MongoClient("mongodb://192.168.100.69:27017")
     
         db = client['drones_db']
         

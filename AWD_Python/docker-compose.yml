@@ -21,9 +21,9 @@ services:
     container_name: engine
     command: sleep infinity
     environment:
-      IP_BBDD: 192.168.0.18
-      IP_CLIMA: 192.168.0.18
-      IP_SERVER_GESTOR: 192.168.0.18
+      IP_BBDD: 192.168.100.69
+      IP_CLIMA: 192.168.100.69
+      IP_SERVER_GESTOR: 192.168.100.69
       IP_ENGINE: 0.0.0.0
       PUERTO_SERVER_GESTOR: 9092
       PUERTO_ESCUCHA: 3001
@@ -56,32 +56,37 @@ services:
       context: .
       dockerfile: Drone.DockerFile
     environment:
-      IP: 192.168.0.18
+      IP: 192.168.100.69
       PORT_ENGINE: 3001
       PORT: 3002
       PORT_KAFKA: 9092
 
     command: python AD_Drone.py
     container_name: dron
-  
+
   zookeeper:
-    image: wurstmeister/zookeeper
+    image: confluentinc/cp-zookeeper:latest
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
     ports:
-      - "2181:2181"
-    container_name: zoo
-    
+      - 22181:2181
+    container_name: zookeeper
+  
   kafka:
-    image: wurstmeister/kafka
+    image: confluentinc/cp-kafka:latest
+    depends_on:
+      - zookeeper
     ports:
-      - "9092:9092"
+      - 29092:29092
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
-      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-
     container_name: kafka
-    depends_on:
-      - zookeeper
+
+
 

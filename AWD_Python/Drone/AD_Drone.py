@@ -134,24 +134,30 @@ class AD_Drone:
 
         recibido = recibido.split(':')  # Corregir esta línea
 
-        self.finalx = recibido[0]
-        self.finaly = recibido[1]
+        self.finalx = int(recibido[0])
+        self.finaly = int(recibido[1])
 
         self.iniciarKafka()
         
         
         while not self.state:
             print('Esperando mensaje del engine') 
-            for message in self.consumer:
-                print('Lo tengo')
-                #data = json.loads(message.value.decode('utf-8'))
-                self.mapa = message.value #data
-                self.producer.send(self.topicProductor, value=self.Movimiento())
-                self.printMap()
+            try:
+                for message in self.consumer:
+                    print('Lo tengo')
+                    data = json.loads(message.value)
+                    self.mapa = data
+                    self.producer.send(self.topicProductor, value=self.Movimiento())
+                    self.printMap()
+            except StopIteration:
+                print('No hay más mensajes disponibles en el tópico de Kafka.')
+            except Exception as e:
+                print(f'Error al consumir mensajes de Kafka: {str(e)}')
             
     
     #Funcion que indica el movimimiento del dron. Si no se mueve indica que ha completado y actualiza el estado del dron
     def Movimiento(self):
+
         if self.finalx > self.x:
             return self.id+':'+'E'
         elif self.finalx < self.x:

@@ -50,7 +50,7 @@ class AD_Engine:
         self.conexionBBDD = "mongodb://" + os.getenv('IP_BBDD') + ":" + os.getenv('PUERTO_BBDD')
         self.boostrap_server = os.getenv('IP_SERVER_GESTOR') + ":" + os.getenv('PUERTO_SERVER_GESTOR')
         self.topicConsumidor = os.getenv('TOPIC_CONSUMIDOR')
-        self.topicProductor =  os.getenv('TOPIC_PRODUCROR')
+        self.topicProductor =  os.getenv('TOPIC_PRODUCTOR')
         self.ipEngine = os.getenv('IP_ENGINE')
         self.ipClima = os.getenv('IP_CLIMA')
         self.puertoClima = os.getenv('PUERTO_CLIMA')
@@ -209,13 +209,15 @@ class AD_Engine:
         while drones_completados < self.dronesNecesarios and ciudad["temperatura"] > 0:
             # Mostrar mapa
             self.printMap()
-            #matriz_serializada = json.dumps(self.mapa).encode('utf-8')
+            mapa_serializado = [[str(item) for item in row] for row in self.mapa]
+            
+            matriz_serializada = json.dumps(mapa_serializado)
             # Mandar mapa por kafka
-            self.producer.send(self.topicProductor, value=self.mapa) #matriz_serializada
+            self.producer.send(self.topicProductor, value=matriz_serializada) #matriz_serializada
             print("Mapa mandado por Kafka")
             # Recibir mensajes kafka
             for mensaje in self.consumer:
-                valor = mensaje.value  # Obtiene el valor del mensaje
+                valor = mensaje.value.decode(FORMAT)  # Obtiene el valor del mensaje
 
                 if valor == "id:COMPLETADO":
                     id, aux = valor.split(":")
@@ -227,7 +229,7 @@ class AD_Engine:
                     id, mov = valor.split(":")
                     # Actualizar mapa
                     self.updateMap(id, mov)
-            ciudad = json.loads(self.sckClima.recv(4096).decode('utf-8'))
+            ciudad = json.loads(self.sckClima.recv(4096).decode(FORMAT))
             if ciudad["temperatura"] < 0:
                 print("“CONDICIONES CLIMATICAS ADVERSAS. ESPECTACULO FINALIZADO")
                 self.sckClima.close()
