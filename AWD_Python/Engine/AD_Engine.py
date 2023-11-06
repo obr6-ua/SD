@@ -198,24 +198,31 @@ class AD_Engine:
         # Nos conectamos al server del clima
         self.sckClima.connect((self.ipClima, int(self.puertoClima)))
         ciudad = json.loads(self.sckClima.recv(4096).decode('utf-8'))
-        while drones_completados < self.dronesNecesarios and ciudad.get('temperatura') > 0:
-            # Mostrar mapa
-            self.printMap()
-            time.sleep(1)
-            mapa_serializado = [[str(item) for item in row] for row in self.mapa]
-            
-            #matriz_serializada = json.dumps(mapa_serializado)
-            # Mandar mapa por kafka
-            self.producer.send(self.topicProductor, value=mapa_serializado) #matriz_serializada
-            print("Mapa mandado por Kafka")
-            # Recibir mensajes kafka
-            for mensaje in self.consumer:
-                valor = mensaje.value.decode(FORMAT)  # Obtiene el valor del mensaje
+        # Mostrar mapa
+        self.printMap()
+        time.sleep(1)
+        mapa_serializado = [[str(item) for item in row] for row in self.mapa]
 
-                if valor == "id:posx:posy:COMPLETADO":
-                    id, posx, posy, aux = valor.split(":")
-                    self.mapa[posx][posy].replace("\033[91m" + str(id) + "\033[0m", "\033[92m" + str(id) + "\033[0m")
-                    drones_completados += 1
+        print(ciudad.get("temperatura"))
+        
+        #matriz_serializada = json.dumps(mapa_serializado)
+        # Mandar mapa por kafka
+        self.producer.send(self.topicProductor, value=mapa_serializado) #matriz_serializada
+        print("Mapa mandado por Kafka")
+        # Recibir mensajes kafka
+        for mensaje in self.consumer:
+            valor = mensaje.value.decode(FORMAT)  # Obtiene el valor del mensaje
+
+            if valor == "id:posx:posy:COMPLETADO":
+                id, posx, posy, aux = valor.split(":")
+                self.mapa[posx][posy].replace("\033[91m" + str(id) + "\033[0m", "\033[92m" + str(id) + "\033[0m")
+                drones_completados += 1
+            else:
+                if ciudad.get('temperatura') < 0 or drones_completados == self.dronesNecesarios:
+                    self.printMap()
+                    print("“CONDICIONES CLIMATICAS ADVERSAS. ESPECTACULO FINALIZADO")
+                    self.sckClima.close()
+                    self.salir()
                 else:
                     # Divide el mensaje "id:posx:posy:mov"
                     id, posx, posy, mov = valor.split(":")
@@ -225,12 +232,7 @@ class AD_Engine:
                     self.printMap()
                     time.sleep(1)    
                     ciudad = json.loads(self.sckClima.recv(4096).decode(FORMAT))
-                    print("Adios")
-                    if ciudad.get('temperatura') < 0:
-                        self.printMap()
-                        print("“CONDICIONES CLIMATICAS ADVERSAS. ESPECTACULO FINALIZADO")
-                        self.sckClima.close()
-                        self.salir()
+                
 
     def nuevoEspectaculo(self):
         self.printMap()
@@ -283,12 +285,12 @@ class AD_Engine:
     
     def salir(self):
         print("Saliendo del espectaculo...")
-        os.sleep(5)
+        time.sleep(5)
         sys.exit(1)
 
     def cargarEspectaculo(self):
         print("Recuperando datos del espectaculo anterior...")
-        os.sleep(5)
+        time.sleep(5)
         print("Datos recuperados.")
         # Empezar a mandar y recibir mensajes por kafka
         self.startKafka()
