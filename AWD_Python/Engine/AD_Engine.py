@@ -211,9 +211,9 @@ class AD_Engine:
             self.printMap()
             mapa_serializado = [[str(item) for item in row] for row in self.mapa]
             
-            matriz_serializada = json.dumps(mapa_serializado)
+            #matriz_serializada = json.dumps(mapa_serializado)
             # Mandar mapa por kafka
-            self.producer.send(self.topicProductor, value=matriz_serializada) #matriz_serializada
+            self.producer.send(self.topicProductor, value=mapa_serializado) #matriz_serializada
             print("Mapa mandado por Kafka")
             # Recibir mensajes kafka
             for mensaje in self.consumer:
@@ -227,6 +227,7 @@ class AD_Engine:
                 else:
                     # Divide el mensaje en "id" y "letra"
                     id, mov = valor.split(":")
+                    print(id + " " + mov)
                     # Actualizar mapa
                     self.updateMap(id, mov)
             ciudad = json.loads(self.sckClima.recv(4096).decode(FORMAT))

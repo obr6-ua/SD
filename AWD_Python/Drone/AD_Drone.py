@@ -93,9 +93,7 @@ class AD_Drone:
             value_deserializer=lambda x: loads(x.decode('utf-8')))
 
         # Creamos productor
-        self.producer = KafkaProducer(bootstrap_servers=[kafka],
-                                    value_serializer=lambda x: 
-                                    json.dumps(x).encode('utf-8'))
+        self.producer = KafkaProducer(bootstrap_servers=[kafka])
 
     def printMap(self):
         print("   ", end="")
@@ -145,9 +143,9 @@ class AD_Drone:
             try:
                 for message in self.consumer:
                     print('Lo tengo')
-                    data = json.loads(message.value)
-                    self.mapa = data
-                    self.producer.send(self.topicProductor, value=self.Movimiento())
+                    #data = json.loads(message.value)
+                    self.mapa = message.value
+                    self.producer.send(self.topicProductor, value=self.Movimiento().encode('utf-8'))
                     self.printMap()
             except StopIteration:
                 print('No hay más mensajes disponibles en el tópico de Kafka.')
