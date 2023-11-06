@@ -103,14 +103,11 @@ class AD_Engine:
 
         #Si existe pillamos los datos del dron
         if registro:
-            print("Token valido")
-
             id = registro['id'] 
             # Le mandamos al dron posicion x e y asignadas
             primer_dron = figuraActual["Drones"].pop(0)
             posx = primer_dron.get("Posicion X", None) 
             posy = primer_dron.get("Posicion Y", None)
-            print(str(posx) + ":" + str(posy))
             
             conn.send((str(posx) + ":" + str(posy)).encode(FORMAT))
             
@@ -167,37 +164,28 @@ class AD_Engine:
                 elemento = self.mapa[i][j]
                 print(f"{elemento:4}", end=" ")
             print()
-    
-    def buscarId(self, id):
-        fila_encontrada = -1
-        columna_encontrada = -1
 
-        for fila, lista in enumerate(self.mapa):
-            if id in lista:
-                columna_encontrada = lista.index(self.mapa)
-                fila_encontrada = fila
-                break
-        return columna_encontrada, fila_encontrada
-
-    def updateMap(self, id, mov):
-        posx, posy = self.buscarId(id)
-        
-        if mov == 'N':
+    def updateMap(self, posx, posy, mov):
+        if mov == 'S':
             if self.mapa[posx][posy-1]:
                 self.mapa[posx][posy-1] = self.mapa[posx][posy-1] + "/" + "\033[91m" + str(id) + "\033[0m"
-            self.mapa[posx][posy-1] = "\033[91m" + str(id) + "\033[0m"
-        elif mov == 'S':
+            else:
+                self.mapa[posx][posy-1] = "\033[91m" + str(id) + "\033[0m"
+        elif mov == 'N':
             if self.mapa[posx][posy+1]:
                 self.mapa[posx][posy+1] = self.mapa[posx][posy+1] + "/" + "\033[91m" + str(id) + "\033[0m"
-            self.mapa[posx][posy+1] = "\033[91m{id}\033[0m"
-        elif mov == 'E':
+            else:
+                self.mapa[posx][posy+1] = "\033[91m{id}\033[0m"
+        elif mov == 'W':
             if self.mapa[posx-1][posy]:
                 self.mapa[posx][posy-1] = self.mapa[posx][posy-1] + "/" + "\033[91m" + str(id) + "\033[0m"
-            self.mapa[posx][posy-1] = "\033[91m" + str(id) + "\033[0m"
+            else:
+                self.mapa[posx][posy-1] = "\033[91m" + str(id) + "\033[0m"
         else:
             if self.mapa[posx+1][posy]:
                 self.mapa[posx][posy+1] = self.mapa[posx][posy+1] + "/" + "\033[91m" + str(id) + "\033[0m"
-            self.mapa[posx][posy+1] = "\033[91m" + str(id) + "\033[0m"
+            else:
+                self.mapa[posx][posy+1] = "\033[91m" + str(id) + "\033[0m"
 
     def startKafka(self):
         drones_completados = 0
@@ -206,9 +194,10 @@ class AD_Engine:
         # Nos conectamos al server del clima
         self.sckClima.connect((self.ipClima, int(self.puertoClima)))
         ciudad = json.loads(self.sckClima.recv(4096).decode('utf-8'))
-        while drones_completados < self.dronesNecesarios and ciudad["temperatura"] > 0:
+        while drones_completados < self.dronesNecesarios and ciudad.get('temperatura') > 0:
             # Mostrar mapa
             self.printMap()
+            time.sleep(1)
             mapa_serializado = [[str(item) for item in row] for row in self.mapa]
             
             #matriz_serializada = json.dumps(mapa_serializado)
@@ -219,19 +208,19 @@ class AD_Engine:
             for mensaje in self.consumer:
                 valor = mensaje.value.decode(FORMAT)  # Obtiene el valor del mensaje
 
-                if valor == "id:COMPLETADO":
-                    id, aux = valor.split(":")
-                    posx, posy = self.buscarId(id)
+                if valor == "id:posx:posy:COMPLETADO":
+                    id, posx, posy, aux = valor.split(":")
                     self.mapa[posx][posy].replace("\033[91m" + str(id) + "\033[0m", "\033[92m" + str(id) + "\033[0m")
                     drones_completados += 1
                 else:
-                    # Divide el mensaje en "id" y "letra"
-                    id, mov = valor.split(":")
+                    # Divide el mensaje "id:posx:posy:mov"
+                    id, posx, posy, mov = valor.split(":")
                     print(id + " " + mov)
                     # Actualizar mapa
-                    self.updateMap(id, mov)
+                    self.updateMap(id, posx, posy, mov)
             ciudad = json.loads(self.sckClima.recv(4096).decode(FORMAT))
-            if ciudad["temperatura"] < 0:
+            if ciudad.get('temperatura') < 0:
+                self.printMap()
                 print("“CONDICIONES CLIMATICAS ADVERSAS. ESPECTACULO FINALIZADO")
                 self.sckClima.close()
                 self.salir()
