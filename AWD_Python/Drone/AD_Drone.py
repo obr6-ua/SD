@@ -155,19 +155,24 @@ class AD_Drone:
     
     #Funcion que indica el movimimiento del dron. Si no se mueve indica que ha completado y actualiza el estado del dron
     def Movimiento(self):
-
+        aux1 = self.x
+        aux2 = self.y
         if self.finalx > self.x:
-            return self.id+':'+'E'
+            self.x = self.x +1 
+            return self.id+':'+aux1+':'+aux2+':'+'E'
         elif self.finalx < self.x:
-            return self.id+':'+'W'
+            self.x = self.x -1
+            return self.id+':'+aux1+':'+aux2+':'+'W'
         else :
             if self.finaly > self.y:
-                return self.id+':'+'N'
+                self.y = self.y +1 
+                return self.id+':'+aux1+':'+aux2+':'+'N'
             elif self.finaly < self.y:
-                return self.id+':'+'S'
+                self.y = self.y -1 
+                return self.id+':'+aux1+':'+aux2+':'+'S'
             else:
                 self.state = True
-                return self.id+':'+'COMPLETADO'
+                return self.id+':'+aux1+':'+aux2+':'+'COMPLETADO'
 
 
             
