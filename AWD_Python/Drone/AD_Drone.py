@@ -88,7 +88,7 @@ class AD_Drone:
             self.topicConsumidor,
             bootstrap_servers=[kafka],
             auto_offset_reset='earliest',
-            enable_auto_commit=True,
+            enable_auto_commit=False,
             group_id='drones',
             value_deserializer=lambda x: loads(x.decode('utf-8')))
 
@@ -108,7 +108,7 @@ class AD_Drone:
 
             # Imprimir espacio en blanco en lugar de los valores de la matriz
             for j in range(1, KTAMANYO):
-                elemento = self.mapa[i][j]
+                elemento = self.mapa[j][i]
                 print(f"{elemento:4}", end=" ")
             print()
 
@@ -129,35 +129,42 @@ class AD_Drone:
         client.send(str(self.token).encode(FORMAT))
 
         recibido = client.recv(HEADER).decode(FORMAT)
+        print("Mensaje recibido del Engine", flush=True)
 
         recibido = recibido.split(':')  # Corregir esta línea
 
         self.finalx = int(recibido[0])
         self.finaly = int(recibido[1])
 
-        self.iniciarKafka()
-        
+        #self.iniciarKafka()
+
+        kafka = os.getenv('IP')+':'+ os.getenv('PORT_KAFKA')
+        # Creamos consumidor
+        consumer = KafkaConsumer(
+            self.topicConsumidor,
+            bootstrap_servers=[kafka],
+            auto_offset_reset='earliest',
+            enable_auto_commit=True,
+            group_id='drones',
+            value_deserializer=lambda x: loads(x.decode('utf-8')))
+
+        # Creamos productor
+        producer = KafkaProducer(bootstrap_servers=[kafka])
         
         while not self.state:
             print('Esperando mensaje del engine') 
-            try:
-                for message in self.consumer:
+            for _, messages in consumer.poll(timeout_ms=1000).items():
+                for message in messages:
                     print('Lo tengo')
-                    #data = json.loads(message.value)
-                    self.mapa = message.value
-                    self.producer.send(self.topicProductor, value=self.Movimiento().encode('utf-8'))
+                    self.mapa = message.value  # Accede directamente al valor de la tupla
+                    producer.send(self.topicProductor, value=self.Movimiento().encode('utf-8'))
                     self.printMap()
-                    time.sleep(10)
-            except StopIteration:
-                print('No hay más mensajes disponibles en el tópico de Kafka.')
-            except Exception as e:
-                print(f'Error al consumir mensajes de Kafka: {str(e)}')
-            
+                    break
+            print("Salgo", flush=True)
+        self.printMap()
     
     #Funcion que indica el movimimiento del dron. Si no se mueve indica que ha completado y actualiza el estado del dron
     def Movimiento(self):
-        aux1 = self.x
-        aux2 = self.y
         if self.finalx > self.x:
             self.x += 1
             return str(self.id) + ":" + str(self.x) + ":" + str(self.y) +':'+'E'
@@ -167,13 +174,13 @@ class AD_Drone:
         else :
             if self.finaly > self.y:
                 self.y += 1
-                return  str(self.id) + ":" + str(self.x) + ":" + str(self.y)+':'+'N'
+                return  str(self.id) + ":" + str(self.x) + ":" + str(self.y)+':'+'S'
             elif self.finaly < self.y:
                 self.y -= 1
-                return  str(self.id) + ":" + str(self.x) + ":" + str(self.x)+':'+'S'
+                return  str(self.id) + ":" + str(self.x) + ":" + str(self.y)+':'+'N'
             else:
                 self.state = True
-                return  str(self.id) + ":" + str(self.y) + ":" + str(self.y) +':'+'COMPLETADO'
+                return  str(self.id) + ":" + str(self.x) + ":" + str(self.y) +':'+'COMPLETADO'
 
 
             
