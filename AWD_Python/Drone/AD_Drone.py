@@ -83,7 +83,7 @@ class AD_Drone:
 
     def printMap(self):
         table = PrettyTable()
-        header = [""] + [str(j) for j in range(1, KTAMANYO + 1)]
+        header = [""] + [str(j) for j in range(1, KTAMANYO)]
         table.field_names = header
 
         for i in range(1, KTAMANYO):
@@ -111,7 +111,7 @@ class AD_Drone:
 
         recibido = client.recv(HEADER).decode(FORMAT)
         print("Mensaje recibido del Engine", flush=True)
-
+        client.close()
         recibido = recibido.split(':')  # Corregir esta línea
 
         self.finalx = int(recibido[0])
@@ -130,18 +130,37 @@ class AD_Drone:
 
         # Creamos productor
         producer = KafkaProducer(bootstrap_servers=[kafka])
-        
-        while not self.state:
-            print('Esperando mensaje del engine') 
-            for _, messages in consumer.poll(timeout_ms=1000).items():
+        fin = False
+        while fin is False:
+            if not self.state:
+                time.sleep(1)
+                producer.send(self.topicProductor, value=self.Movimiento().encode('utf-8'))
+               
+            msg_poll = consumer.poll(timeout_ms=1000)
+            if msg_poll is None:
+                continue  # No hay mensajes, sigue esperando
+
+            for _, messages in msg_poll.items():
                 for message in messages:
                     print('Lo tengo')
-                    self.mapa = message.value  # Accede directamente al valor de la tupla
-                    producer.send(self.topicProductor, value=self.Movimiento().encode('utf-8'))
-                    self.printMap()
-                    break
-            print("Salgo", flush=True)
-        self.printMap()
+                    if message.value == 'RESET':
+                        time.sleep(5)
+                        print('Estoy reseteando...')
+                        self.x = 1
+                        self.y = 1
+                        self.state = False
+                        self.logearse(host, port)
+                    elif message.value == 'FIN':
+                        fin = True
+                    else:
+                        self.mapa = message.value # Accede directamente al valor de la tupla
+                        self.printMap()
+        print('FIGURAS COMPLETADAS HIJODEPUTA')
+        print('DIBLOOOO QUE GANSTER!!!')
+        
+            
+                
+        
     
     #Funcion que indica el movimimiento del dron. Si no se mueve indica que ha completado y actualiza el estado del dron
     def Movimiento(self):

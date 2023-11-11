@@ -4,7 +4,6 @@ import time
 import json
 import socket
 import threading
-import keyboard
 from pymongo import MongoClient
 from kafka import KafkaConsumer
 from kafka import KafkaProducer
@@ -121,14 +120,18 @@ class AD_Engine:
     
     def conectarDrones(self, figuraActual):
         self.sckServidor = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.sckServidor.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.sckServidor.bind((self.ipEngine, int(self.puerto_escucha)))
         self.sckServidor.listen(20)
 
         print("AD_Engine a la espera de que los drones se conecten.")
         print("Drones necesarios: " + str(self.dronesNecesarios))
 
+        threads = []
+        
+        print(figuraActual['Nombre'])    
         try:
-            while len(self.idsValidas) < 2: #self.dronesNecesarios:
+            while len(self.idsValidas) < self.dronesNecesarios:
                 CONEX_ACTIVAS = threading.active_count() - 3  # Obtén el número actual de hilos activos
                 print("self.idsValidas " + str(len(self.idsValidas)))
 
@@ -136,18 +139,21 @@ class AD_Engine:
                     conn, addr = self.sckServidor.accept()
                     thread = threading.Thread(target=self.manageDrone, args=(conn, addr, figuraActual))
                     thread.start()
+                    threads.append(thread)  # Guarda el hilo para unirse más tarde
                     time.sleep(3)
                 else:
                     print("OOppsss... DEMASIADAS CONEXIONES. ESPERANDO A QUE ALGUIEN SE VAYA")
         except Exception as e:
             print(f"Error: {e}")
         finally:
+            for thread in threads:
+                thread.join()
             self.sckServidor.close()
             print("Servidor cerrado")
     
     def printMap(self):
         table = PrettyTable()
-        header = [""] + [str(j) for j in range(1, KTAMANYO + 1)]
+        header = [""] + [str(j) for j in range(1, KTAMANYO)]
         table.field_names = header
 
         for i in range(1, KTAMANYO):
@@ -218,48 +224,73 @@ class AD_Engine:
         print("Mapa mandado por Kafka")
         valor = None
         # Recibir mensajes kafka
+        for figura in self.figuras:
+            if figura["Completada"] == False:
+                self.dronesNecesarios = len(figura["Drones"])
+                figuraActual = figura
+
+                # Conectar nuevos drones
+                self.conectarDrones(figuraActual)
+
+                # Empezar a mandar y recibir mensajes por kafka
+                self.figura(temperatura , consumer , producer)
+                
+                figura["Completada"] = True
+                self.idsValidas.clear()
+            else:
+                os.sleep(10)
+                print("No hay mas figuras, mandando drones a base")
+                self.mapa[0][0] = "/".join([f"\x1b[31m" + str(id) + "\x1b[0m" for id in self.idsValidas])
+                self.printMap()
+                self.start()
+
+            
+    def figura(self , temperatura , consumer , producer):
+        id, posx, posy, mov = "", "", "", ""
+        drones_completados = 0
         while True:
-            id, posx, posy, mov = "", "", "", ""
             if drones_completados == self.dronesNecesarios:
                 self.printMap()
+                producer.send(self.topicProductor, value='RESET')
                 print("COMPLETADO")
-                self.sckClima.close()
-                break
+                
+                return
             if temperatura <= 0:
                     self.printMap()
                     print("CONDICIONES CLIMATICAS ADVERSAS. ESPECTACULO FINALIZADO")
                     self.sckClima.close()
                     self.salir()
             #self.sckClima.connect((self.ipClima, int(self.puertoClima)))
-            for _, messages in consumer.poll(timeout_ms=1000).items():
-                for message in messages:
-                    valor = message.value.decode(FORMAT)  # Obtiene el valor del mensaje
-                    print(valor)
-                    break
+            for message in consumer:
+                valor = message.value.decode(FORMAT)  # Obtiene el valor del mensaje
+                if valor != None:
+                    id, posx, posy, mov = valor.split(":")
+                    if mov == "COMPLETADO":
+                        print("self.mapa[int(posx)][int(posy)]  " + str(self.mapa[int(posx)][int(posy)]))
+                        self.mapa[int(posx)][int(posy)] = "\033[92m" + str(id) + "\033[0m"
+                        self.printMap()
+                        mapa_serializado = [[str(item) for item in row] for row in self.mapa]
+                        producer.send(self.topicProductor, value=mapa_serializado) 
+                        drones_completados += 1
+                        print("drones_completados " + str(drones_completados))
+                        break
+                    else:
+                        print(id + " " + mov)
+                        # Actualizar mapa
+                        self.updateMap(id, posx, posy, mov)
+                        print("Actualizado", flush=True)
+                        self.printMap()   
+                        #temperatura = int(self.sckClima.recv(4096).decode('utf-8'))
+                        #print(temperatura)   
+                        break
             time.sleep(1)
             # Divide el mensaje "id:posx:posy:mov"
-            if valor != None:
-                id, posx, posy, mov = valor.split(":")
-                if mov == "COMPLETADO":
-                    print("self.mapa[int(posx)][int(posy)]  " + str(self.mapa[int(posx)][int(posy)]))
-                    self.mapa[int(posx)][int(posy)] = "\033[92m" + str(id) + "\033[0m"
-                    self.printMap()
-                    drones_completados += 1
-                    print("drones_completados " + str(drones_completados))
-                else:
-                    print(id + " " + mov)
-                    # Actualizar mapa
-                    self.updateMap(id, posx, posy, mov)
-                    print("Actualizado", flush=True)
-                    self.printMap()   
-                    #temperatura = int(self.sckClima.recv(4096).decode('utf-8'))
-                    #print(temperatura)   
+            
             valor = None
             print("Mando mapa otra vez", flush=True)
             mapa_serializado = [[str(item) for item in row] for row in self.mapa]
             producer.send(self.topicProductor, value=mapa_serializado) 
-            print("Mandado", flush=True)
-            
+            print("Mandado", flush=True)        
 
     def nuevoEspectaculo(self):
         print("Hilos activos:")
@@ -292,26 +323,9 @@ class AD_Engine:
 
         print(f"El archivo {JSON} ha sido procesado.")
 
-        while True:
-            # Cuantos drones necesita la figura a realizar
-            for figura in self.figuras:
-                if figura["Completada"] == False:
-                    self.dronesNecesarios = len(figura["Drones"])
-                    figuraActual = figura
-
-                    # Conectar nuevos drones
-                    self.conectarDrones(figuraActual)
-
-                    # Empezar a mandar y recibir mensajes por kafka
-                    self.startKafka()
-                    
-                    figura["Completada"] = True
-                else:
-                    os.sleep(10)
-                    print("No hay mas figuras, mandando drones a base")
-                    self.mapa[0][0] = "/".join([f"\x1b[31m" + str(id) + "\x1b[0m" for id in self.idsValidas])
-                    self.printMap()
-                    self.start()
+        self.startKafka()
+        
+            
     
     def salir(self):
         print("Saliendo del espectaculo...")
