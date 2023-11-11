@@ -4,7 +4,7 @@ RUN apk add py3-pip
 RUN pip install colorama
 RUN pip install kafka-python
 RUN pip install pymongo
-RUN pip install keyboard
+RUN pip install prettytable
 
 ADD Engine /opt/Engine
 

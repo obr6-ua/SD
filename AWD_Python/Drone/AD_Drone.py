@@ -6,6 +6,7 @@ import time
 import sys
 import socket
 import os
+from prettytable import PrettyTable
 
 
 # from colorama import Fore, Back, Style
@@ -61,10 +62,9 @@ class AD_Drone:
             ADDR_REGISTRO = (host, port)
             client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             client.connect(ADDR_REGISTRO)
-            self.alias = input("Alias nuevo: ")
             print(f"Establecida conexión en [{ADDR_REGISTRO}]")
 
-            cadena = "1:" + self.id + ":" + self.alias
+            cadena = "1:" + self.id + ":" + self.id
 
             client.send(cadena.encode(FORMAT))
 
@@ -81,36 +81,17 @@ class AD_Drone:
 
         client.close()
 
-    def iniciarKafka(self):
-        kafka = os.getenv('IP')+':'+ os.getenv('PORT_KAFKA')
-        # Creamos consumidor
-        self.consumer = KafkaConsumer(
-            self.topicConsumidor,
-            bootstrap_servers=[kafka],
-            auto_offset_reset='earliest',
-            enable_auto_commit=False,
-            group_id='drones',
-            value_deserializer=lambda x: loads(x.decode('utf-8')))
-
-        # Creamos productor
-        self.producer = KafkaProducer(bootstrap_servers=[kafka])
-
     def printMap(self):
-        print("   ", end="")
-        for j in range(1, KTAMANYO + 1):
-            print(f"{j:4}", end=" ")
-        print()
+        table = PrettyTable()
+        header = [""] + [str(j) for j in range(1, KTAMANYO + 1)]
+        table.field_names = header
 
-        # Imprimir la matriz con los números de fila en el borde izquierdo
         for i in range(1, KTAMANYO):
-            # Imprimir el número de fila en el borde izquierdo
-            print(f"{i:3} ", end="")
+            row = [str(i)] + [self.mapa[j][i] for j in range(1, KTAMANYO)]
+            table.add_row(row)
 
-            # Imprimir espacio en blanco en lugar de los valores de la matriz
-            for j in range(1, KTAMANYO):
-                elemento = self.mapa[j][i]
-                print(f"{elemento:4}", end=" ")
-            print()
+        print(table)
+
 
 
     def logearse(self, host, port):
@@ -145,7 +126,6 @@ class AD_Drone:
             bootstrap_servers=[kafka],
             auto_offset_reset='earliest',
             enable_auto_commit=True,
-            group_id='drones',
             value_deserializer=lambda x: loads(x.decode('utf-8')))
 
         # Creamos productor

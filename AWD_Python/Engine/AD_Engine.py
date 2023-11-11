@@ -8,6 +8,7 @@ import keyboard
 from pymongo import MongoClient
 from kafka import KafkaConsumer
 from kafka import KafkaProducer
+from prettytable import PrettyTable
 #from random import randint
 
 JSON = "AwD_figuras.json"
@@ -145,21 +146,15 @@ class AD_Engine:
             print("Servidor cerrado")
     
     def printMap(self):
-        print("   ", end="")
-        for j in range(1, KTAMANYO + 1):
-            print(f"{j:1}", end=" ")
-        print()
+        table = PrettyTable()
+        header = [""] + [str(j) for j in range(1, KTAMANYO + 1)]
+        table.field_names = header
 
-        # Imprimir la matriz con los números de fila en el borde izquierdo
         for i in range(1, KTAMANYO):
-            # Imprimir el número de fila en el borde izquierdo
-            print(f"{i:1} ", end="")
+            row = [str(i)] + [self.mapa[j][i] for j in range(1, KTAMANYO)]
+            table.add_row(row)
 
-            # Imprimir espacio en blanco en lugar de los valores de la matriz
-            for j in range(1, KTAMANYO):
-                elemento = self.mapa[j][i]
-                print(f"{elemento:1}", end=" ")
-            print()
+        print(table)
 
     def updateMap(self, id, p_posx, p_posy, mov):
         print("Actualizando", flush=True)
