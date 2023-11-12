@@ -121,16 +121,11 @@ class AD_Drone:
 
             #self.iniciarKafka()
 
-            
-            fin = False
-            while fin is False:
+            while True:
                 if not self.state:
-                    time.sleep(1)
                     producer.send(self.topicProductor, value=self.Movimiento().encode('utf-8'))
                 
                 msg_poll = consumer.poll(timeout_ms=1000)
-                if msg_poll is None:
-                    continue  # No hay mensajes, sigue esperando
 
                 for _, messages in msg_poll.items():
                     for message in messages:
@@ -140,7 +135,7 @@ class AD_Drone:
                             self.x = 1
                             self.y = 1
                             self.state = False
-                            fin = self.logearse(host, port , producer, consumer)
+                            self.logearse(host, port , producer, consumer)
                         else:
                             self.mapa = message.value # Accede directamente al valor de la tupla
                             self.printMap()

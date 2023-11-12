@@ -106,7 +106,7 @@ class AD_Engine:
             # Verificar si ya hay una ID en la posición 0
             if self.mapa[1][1]:
                 # Si ya hay una ID, la concatenamos con la nueva ID utilizando "/"
-                self.mapa[1][1] += f"/\x1b[31m" + id + "\x1b[0m"
+                self.mapa[1][1] += f"|\x1b[31m" + id + "\x1b[0m"
             else:
                  # Si no hay una ID en la posición 0, simplemente asignamos la nueva ID en rojo
                 self.mapa[1][1] = f"\x1b[31m" + id + "\x1b[0m"
@@ -133,15 +133,13 @@ class AD_Engine:
         
         print(figuraActual['Nombre'])    
         try:
-            while len(self.idsValidas) < self.dronesNecesarios:
-                CONEX_ACTIVAS = threading.active_count() - 3  # Obtén el número actual de hilos activos
+            while len(self.idsValidas)+1 < self.dronesNecesarios:
                 print("self.idsValidas " + str(len(self.idsValidas)))
 
                 conn, addr = self.sckServidor.accept()
                 thread = threading.Thread(target=self.manageDrone, args=(conn, addr, figuraActual))
                 thread.start()
                 threads.append(thread)  # Guarda el hilo para unirse más tarde
-                time.sleep(3)
         except Exception as e:
             print(f"Error: {e}")
         finally:
@@ -162,33 +160,40 @@ class AD_Engine:
         print(table)
 
     def updateMap(self, id, p_posx, p_posy, mov):
-        print("Actualizando", flush=True)
-        posx = int(p_posx)
-        posy = int(p_posy)
+        # Convertir a enteros las posiciones
+        new_posx = int(p_posx)
+        new_posy = int(p_posy)
 
+        # Formato de ID del dron
         id_str = "\033[91m" + str(id) + "\033[0m"
 
-        # Borra la posición anterior
-        if mov == 'S' and posy > 1:
-            self.mapa[posx][posy - 1] = ""
-        elif mov == 'N' and posy < KTAMANYO - 1:
-            self.mapa[posx][posy + 1] = ""
-        elif mov == 'W' and posx < KTAMANYO - 1:
-            self.mapa[posx + 1][posy] = ""
-        elif mov == 'E' and posx > 1:
-            self.mapa[posx - 1][posy] = ""
+        # Determinar la posición anterior basada en el movimiento
+        old_posx, old_posy = new_posx, new_posy
+        if mov == 'N':
+            old_posy += 1
+        elif mov == 'S':
+            old_posy -= 1
+        elif mov == 'E':
+            old_posx -= 1
+        elif mov == 'W':
+            old_posx += 1
 
-        print("Actualizando2", flush=True)
+        # Borrar el ID del dron de la posición anterior
+        pos_anterior = self.mapa[old_posx][old_posy]
+        if pos_anterior:
+            drones = pos_anterior.split("|")
+            if id_str in drones:
+                drones.remove(id_str)
+                self.mapa[old_posx][old_posy] = "|".join(drones).strip()
 
-        # Verifica si la nueva posición está vacía y coloca el ID del dron
-        if mov == 'S' and posy > 1 and self.mapa[posx][posy - 1] == "":
-            self.mapa[posx][posy] = id_str
-        elif mov == 'N' and posy < KTAMANYO - 1 and self.mapa[posx][posy + 1] == "":
-            self.mapa[posx][posy] = id_str
-        elif mov == 'W' and posx < KTAMANYO - 1 and self.mapa[posx + 1][posy] == "":
-            self.mapa[posx][posy] = id_str
-        elif mov == 'E' and posx > 1 and self.mapa[posx - 1][posy] == "":
-            self.mapa[posx][posy] = id_str
+        # Verificar si la nueva posición ya tiene un dron
+        if self.mapa[new_posx][new_posy] != "":
+            # Concatenar los IDs de los drones
+            self.mapa[new_posx][new_posy] += "|" + id_str
+        else:
+            # Colocar el dron en la nueva posición
+            self.mapa[new_posx][new_posy] = id_str
+
 
 
     def startKafka(self):
@@ -235,12 +240,6 @@ class AD_Engine:
                 
                 figura["Completada"] = True
                 self.idsValidas.clear()
-            else:
-                os.sleep(10)
-                print("No hay mas figuras, mandando drones a base")
-                self.mapa[0][0] = "/".join([f"\x1b[31m" + str(id) + "\x1b[0m" for id in self.idsValidas])
-                self.printMap()
-                self.start()
 
             
     def figura(self , temperatura , consumer , producer):
@@ -266,23 +265,24 @@ class AD_Engine:
                 valor = message.value.decode(FORMAT)  # Obtiene el valor del mensaje
                 id, posx, posy, mov = valor.split(":")
                 if mov == "COMPLETADO":
+                    print(f'Consumidos: = {consumidos}')
+                    drones_completados += 1
+                    print(f'Lo otro: = {self.dronesNecesarios - drones_completados}')
                     print("self.mapa[int(posx)][int(posy)]  " + str(self.mapa[int(posx)][int(posy)]))
                     self.mapa[int(posx)][int(posy)] = "\033[92m" + str(id) + "\033[0m"
                     self.printMap()
-                    if consumidos == self.dronesNecesarios:     
+                    if consumidos == self.dronesNecesarios - drones_completados:     
                         mapa_serializado = [[str(item) for item in row] for row in self.mapa]
                         producer.send(self.topicProductor, value=mapa_serializado)     
                         self.printMap()
-                        consumidos = 0
-                    producer.send(self.topicProductor, value=mapa_serializado) 
-                    drones_completados += 1
+                        consumidos = 0    
                     print("drones_completados " + str(drones_completados))
                     break
                 else:
                     print(id + " " + mov)
                     # Actualizar mapa
                     self.updateMap(id, posx, posy, mov)
-                    if consumidos == self.dronesNecesarios:
+                    if consumidos == self.dronesNecesarios - drones_completados:
                         mapa_serializado = [[str(item) for item in row] for row in self.mapa]
                         producer.send(self.topicProductor, value=mapa_serializado)     
                         self.printMap()
