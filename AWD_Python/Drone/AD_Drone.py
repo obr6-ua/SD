@@ -139,6 +139,7 @@ class AD_Drone:
                         else:
                             self.mapa = message.value # Accede directamente al valor de la tupla
                             self.printMap()
+                            time.sleep(0.1)
         client.close()
         print('FIGURAS COMPLETADAS HIJODEPUTA')
         print('DIBLOOOO QUE GANSTER!!!')

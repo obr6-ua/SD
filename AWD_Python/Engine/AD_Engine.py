@@ -106,10 +106,10 @@ class AD_Engine:
             # Verificar si ya hay una ID en la posición 0
             if self.mapa[1][1]:
                 # Si ya hay una ID, la concatenamos con la nueva ID utilizando "/"
-                self.mapa[1][1] += f"|\x1b[31m" + id + "\x1b[0m"
+                self.mapa[1][1] += "|\033[91m" + id +"\033[0m"
             else:
                  # Si no hay una ID en la posición 0, simplemente asignamos la nueva ID en rojo
-                self.mapa[1][1] = f"\x1b[31m" + id + "\x1b[0m"
+                self.mapa[1][1] = "\033[91m" + id + "\033[0m"
 
             # Me guardo el id del dron que ha logrado registrarse correctamente
             with self.lock:
@@ -140,6 +140,7 @@ class AD_Engine:
                 thread = threading.Thread(target=self.manageDrone, args=(conn, addr, figuraActual))
                 thread.start()
                 threads.append(thread)  # Guarda el hilo para unirse más tarde
+                #time.sleep(0.3)
         except Exception as e:
             print(f"Error: {e}")
         finally:
@@ -181,6 +182,7 @@ class AD_Engine:
         # Borrar el ID del dron de la posición anterior
         pos_anterior = self.mapa[old_posx][old_posy]
         if pos_anterior:
+            print(pos_anterior)
             drones = pos_anterior.split("|")
             if id_str in drones:
                 drones.remove(id_str)
@@ -193,7 +195,6 @@ class AD_Engine:
         else:
             # Colocar el dron en la nueva posición
             self.mapa[new_posx][new_posy] = id_str
-
 
 
     def startKafka(self):
@@ -239,7 +240,7 @@ class AD_Engine:
                 self.figura(temperatura, consumer, producer)             
                 
                 figura["Completada"] = True
-                self.idsValidas.clear()
+                self.idsValidas = []
 
             
     def figura(self , temperatura , consumer , producer):
@@ -249,6 +250,7 @@ class AD_Engine:
         while True:
             if drones_completados == self.dronesNecesarios:
                 self.printMap()
+                time.sleep(5)
                 producer.send(self.topicProductor, value='RESET')
                 print("COMPLETADO")
                 
@@ -271,11 +273,9 @@ class AD_Engine:
                     print("self.mapa[int(posx)][int(posy)]  " + str(self.mapa[int(posx)][int(posy)]))
                     self.mapa[int(posx)][int(posy)] = "\033[92m" + str(id) + "\033[0m"
                     self.printMap()
-                    if consumidos == self.dronesNecesarios - drones_completados:     
-                        mapa_serializado = [[str(item) for item in row] for row in self.mapa]
-                        producer.send(self.topicProductor, value=mapa_serializado)     
-                        self.printMap()
-                        consumidos = 0    
+                    mapa_serializado = [[str(item) for item in row] for row in self.mapa]
+                    producer.send(self.topicProductor, value=mapa_serializado)     
+                    self.printMap()
                     print("drones_completados " + str(drones_completados))
                     break
                 else:
@@ -290,11 +290,9 @@ class AD_Engine:
                     print("Actualizado", flush=True)
                     #temperatura = int(self.sckClima.recv(4096).decode('utf-8'))  
                     break
+            time.sleep(0.1)
 
     def nuevoEspectaculo(self):
-        print("Hilos activos:")
-        for thread in threading.enumerate():
-            print(thread.ident, thread.name)
         # Reseteo informacion guardada
         # Pongo todas las figuras sin completar
         for figura in self.figuras:
@@ -324,19 +322,10 @@ class AD_Engine:
 
         self.startKafka()
         
-            
-    
     def salir(self):
         print("Saliendo del espectaculo...")
         time.sleep(5)
         sys.exit(1)
-
-    def cargarEspectaculo(self):
-        print("Recuperando datos del espectaculo anterior...")
-        time.sleep(5)
-        print("Datos recuperados.")
-        # Empezar a mandar y recibir mensajes por kafka
-        self.startKafka()
 
     def menu(self):
         print("AD_ENGINE MENU PRINCIPAL")
@@ -354,8 +343,6 @@ class AD_Engine:
             if opcion == 1:
                 self.nuevoEspectaculo()
             elif opcion == 2:
-                self.cargarEspectaculo()
-            elif opcion == 3:
                 self.salir()
             else:
                 print("Opcion no valida, elige una opcion.")
