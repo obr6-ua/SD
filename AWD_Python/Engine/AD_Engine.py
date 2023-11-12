@@ -99,6 +99,8 @@ class AD_Engine:
             posx = primer_dron.get("Posicion X", None) 
             posy = primer_dron.get("Posicion Y", None)
             
+            print('Mensaje: ' + str(posx) + ":" + str(posy))
+            
             conn.send((str(posx) + ":" + str(posy)).encode(FORMAT))
             
             # Verificar si ya hay una ID en la posición 0
@@ -135,14 +137,11 @@ class AD_Engine:
                 CONEX_ACTIVAS = threading.active_count() - 3  # Obtén el número actual de hilos activos
                 print("self.idsValidas " + str(len(self.idsValidas)))
 
-                if CONEX_ACTIVAS <= self.dronesNecesarios:
-                    conn, addr = self.sckServidor.accept()
-                    thread = threading.Thread(target=self.manageDrone, args=(conn, addr, figuraActual))
-                    thread.start()
-                    threads.append(thread)  # Guarda el hilo para unirse más tarde
-                    time.sleep(3)
-                else:
-                    print("OOppsss... DEMASIADAS CONEXIONES. ESPERANDO A QUE ALGUIEN SE VAYA")
+                conn, addr = self.sckServidor.accept()
+                thread = threading.Thread(target=self.manageDrone, args=(conn, addr, figuraActual))
+                thread.start()
+                threads.append(thread)  # Guarda el hilo para unirse más tarde
+                time.sleep(3)
         except Exception as e:
             print(f"Error: {e}")
         finally:
@@ -232,8 +231,9 @@ class AD_Engine:
                 # Conectar nuevos drones
                 self.conectarDrones(figuraActual)
 
-                # Empezar a mandar y recibir mensajes por kafka
-                self.figura(temperatura , consumer , producer)
+                hilo_dron = threading.Thread(target=self.figura, args=(temperatura, consumer, producer))
+                hilo_dron.start()
+                
                 
                 figura["Completada"] = True
                 self.idsValidas.clear()

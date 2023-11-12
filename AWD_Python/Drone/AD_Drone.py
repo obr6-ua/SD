@@ -72,7 +72,6 @@ class AD_Drone:
 
             print(f"He recibido el mensaje del Registry: {self.token}")
             
-            
             return self
 
         except Exception as e:
@@ -94,7 +93,7 @@ class AD_Drone:
 
 
 
-    def logearse(self, host, port):
+    def logearse(self, host, port , producer , consumer):
         ADDR_log = (host, port)
         client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         try:
@@ -109,55 +108,47 @@ class AD_Drone:
 
         client.send(str(self.token).encode(FORMAT))
 
+        
         recibido = client.recv(HEADER).decode(FORMAT)
+        
         print("Mensaje recibido del Engine", flush=True)
+        if recibido != '':
+            print(recibido)
+            recibido = recibido.split(':')  # Corregir esta línea
+
+            self.finalx = int(recibido[0])
+            self.finaly = int(recibido[1])
+
+            #self.iniciarKafka()
+
+            
+            fin = False
+            while fin is False:
+                if not self.state:
+                    time.sleep(1)
+                    producer.send(self.topicProductor, value=self.Movimiento().encode('utf-8'))
+                
+                msg_poll = consumer.poll(timeout_ms=1000)
+                if msg_poll is None:
+                    continue  # No hay mensajes, sigue esperando
+
+                for _, messages in msg_poll.items():
+                    for message in messages:
+                        print('Lo tengo')
+                        if message.value == 'RESET':
+                            print('Estoy reseteando...')
+                            self.x = 1
+                            self.y = 1
+                            self.state = False
+                            fin = self.logearse(host, port , producer, consumer)
+                        else:
+                            self.mapa = message.value # Accede directamente al valor de la tupla
+                            self.printMap()
         client.close()
-        recibido = recibido.split(':')  # Corregir esta línea
-
-        self.finalx = int(recibido[0])
-        self.finaly = int(recibido[1])
-
-        #self.iniciarKafka()
-
-        kafka = os.getenv('IP')+':'+ os.getenv('PORT_KAFKA')
-        # Creamos consumidor
-        consumer = KafkaConsumer(
-            self.topicConsumidor,
-            bootstrap_servers=[kafka],
-            auto_offset_reset='earliest',
-            enable_auto_commit=True,
-            value_deserializer=lambda x: loads(x.decode('utf-8')))
-
-        # Creamos productor
-        producer = KafkaProducer(bootstrap_servers=[kafka])
-        fin = False
-        while fin is False:
-            if not self.state:
-                time.sleep(1)
-                producer.send(self.topicProductor, value=self.Movimiento().encode('utf-8'))
-               
-            msg_poll = consumer.poll(timeout_ms=1000)
-            if msg_poll is None:
-                continue  # No hay mensajes, sigue esperando
-
-            for _, messages in msg_poll.items():
-                for message in messages:
-                    print('Lo tengo')
-                    if message.value == 'RESET':
-                        time.sleep(5)
-                        print('Estoy reseteando...')
-                        self.x = 1
-                        self.y = 1
-                        self.state = False
-                        self.logearse(host, port)
-                    elif message.value == 'FIN':
-                        fin = True
-                    else:
-                        self.mapa = message.value # Accede directamente al valor de la tupla
-                        self.printMap()
         print('FIGURAS COMPLETADAS HIJODEPUTA')
         print('DIBLOOOO QUE GANSTER!!!')
         
+        return True
             
                 
         
@@ -185,30 +176,22 @@ class AD_Drone:
             
     # ip y puerto engine, ip y puerto del kafka, ip y puerto de registry
     def main(self):
-        opcion = ""
-        while opcion != "5":
-            print("///////////////////////////////////////")
-            print("// BIENVENIDO AL ESPECTACULO         //")
-            print("//                                   //")
-            print("// Menu:                             //")
-            print("// 1. Editar dron                    //")
-            print("// 2. Crear dron                     //")
-            print("// 3. Entrar a la partida            //")
-            print("// 4. Retomar partida (desconexión)  //")
-            print("// 5. Salir                          //")
-            print("///////////////////////////////////////")
-            res = input("Introduce la opcion que quieras hacer: ")
-            opcion = res
-            if res == "1":
-                self.editUser(os.getenv("IP"), int(os.getenv("PORT")))
-            elif res == "2":
-                self.registro(os.getenv("IP"), int(os.getenv("PORT")))
-            elif res == "3":
-                self.logearse(os.getenv("IP"), int(os.getenv("PORT_ENGINE")))
-            elif res == "4":
-                pass
-                # alias = input("¿Cuál era tu alias?: ")
-                # iniciarKafka(alias)
+        
+            self.registro(os.getenv("IP"), int(os.getenv("PORT")))
+
+            kafka = os.getenv('IP')+':'+ os.getenv('PORT_KAFKA')
+            # Creamos consumidor
+            consumer = KafkaConsumer(
+                self.topicConsumidor,
+                bootstrap_servers=[kafka],
+                auto_offset_reset='earliest',
+                enable_auto_commit=True,
+                value_deserializer=lambda x: loads(x.decode('utf-8')))
+
+            # Creamos productor
+            producer = KafkaProducer(bootstrap_servers=[kafka])      
+            self.logearse(os.getenv("IP"), int(os.getenv("PORT_ENGINE")) , producer , consumer)
+
 
 if __name__ == "__main__":
     drone = AD_Drone()
