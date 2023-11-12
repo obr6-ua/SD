@@ -231,9 +231,7 @@ class AD_Engine:
                 # Conectar nuevos drones
                 self.conectarDrones(figuraActual)
 
-                hilo_dron = threading.Thread(target=self.figura, args=(temperatura, consumer, producer))
-                hilo_dron.start()
-                
+                self.figura(temperatura, consumer, producer)             
                 
                 figura["Completada"] = True
                 self.idsValidas.clear()
@@ -248,6 +246,7 @@ class AD_Engine:
     def figura(self , temperatura , consumer , producer):
         id, posx, posy, mov = "", "", "", ""
         drones_completados = 0
+        consumidos = 0
         while True:
             if drones_completados == self.dronesNecesarios:
                 self.printMap()
@@ -260,37 +259,37 @@ class AD_Engine:
                     print("CONDICIONES CLIMATICAS ADVERSAS. ESPECTACULO FINALIZADO")
                     self.sckClima.close()
                     self.salir()
+            
             #self.sckClima.connect((self.ipClima, int(self.puertoClima)))
             for message in consumer:
+                consumidos += 1
                 valor = message.value.decode(FORMAT)  # Obtiene el valor del mensaje
-                if valor != None:
-                    id, posx, posy, mov = valor.split(":")
-                    if mov == "COMPLETADO":
-                        print("self.mapa[int(posx)][int(posy)]  " + str(self.mapa[int(posx)][int(posy)]))
-                        self.mapa[int(posx)][int(posy)] = "\033[92m" + str(id) + "\033[0m"
-                        self.printMap()
+                id, posx, posy, mov = valor.split(":")
+                if mov == "COMPLETADO":
+                    print("self.mapa[int(posx)][int(posy)]  " + str(self.mapa[int(posx)][int(posy)]))
+                    self.mapa[int(posx)][int(posy)] = "\033[92m" + str(id) + "\033[0m"
+                    self.printMap()
+                    if consumidos == self.dronesNecesarios:     
                         mapa_serializado = [[str(item) for item in row] for row in self.mapa]
-                        producer.send(self.topicProductor, value=mapa_serializado) 
-                        drones_completados += 1
-                        print("drones_completados " + str(drones_completados))
-                        break
-                    else:
-                        print(id + " " + mov)
-                        # Actualizar mapa
-                        self.updateMap(id, posx, posy, mov)
-                        print("Actualizado", flush=True)
-                        self.printMap()   
-                        #temperatura = int(self.sckClima.recv(4096).decode('utf-8'))
-                        #print(temperatura)   
-                        break
-            time.sleep(1)
-            # Divide el mensaje "id:posx:posy:mov"
-            
-            valor = None
-            print("Mando mapa otra vez", flush=True)
-            mapa_serializado = [[str(item) for item in row] for row in self.mapa]
-            producer.send(self.topicProductor, value=mapa_serializado) 
-            print("Mandado", flush=True)        
+                        producer.send(self.topicProductor, value=mapa_serializado)     
+                        self.printMap()
+                        consumidos = 0
+                    producer.send(self.topicProductor, value=mapa_serializado) 
+                    drones_completados += 1
+                    print("drones_completados " + str(drones_completados))
+                    break
+                else:
+                    print(id + " " + mov)
+                    # Actualizar mapa
+                    self.updateMap(id, posx, posy, mov)
+                    if consumidos == self.dronesNecesarios:
+                        mapa_serializado = [[str(item) for item in row] for row in self.mapa]
+                        producer.send(self.topicProductor, value=mapa_serializado)     
+                        self.printMap()
+                        consumidos = 0
+                    print("Actualizado", flush=True)
+                    #temperatura = int(self.sckClima.recv(4096).decode('utf-8'))  
+                    break
 
     def nuevoEspectaculo(self):
         print("Hilos activos:")
