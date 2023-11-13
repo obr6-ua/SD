@@ -74,9 +74,6 @@ class AD_Engine:
         except Exception:
             print("No se pudo conectar a MongoDB. Verifica la configuración de conexión.")
             print()
-        
-        # Cleamos el socket al servidor del clima
-        self.sckClima = socket.socket()
 
         self.start()
     
@@ -195,7 +192,6 @@ class AD_Engine:
             # Colocar el dron en la nueva posición
             self.mapa[new_posx][new_posy] = id_str
 
-
     def startKafka(self):
         # Creamos consumidor
         consumer = KafkaConsumer(
@@ -214,9 +210,6 @@ class AD_Engine:
         self.printMap()
         time.sleep(1)
 
-        # Conexión con AD_Weather
-        self.sckClima.connect((self.ipClima, int(self.puertoClima)))
-        print("Conectado al AD_Weather")
         # Recibir mensajes kafka
         for figura in self.figuras:
             if figura["Completada"] == False:
@@ -224,9 +217,16 @@ class AD_Engine:
                 figuraActual = figura
                 # Conectar nuevos drones
                 self.conectarDrones(figuraActual)
-
-                temperatura = int(self.sckClima.recv(4096).decode(FORMAT))
+                
+                # Cleamos el socket al servidor del clima
+                sckClima = socket.socket()
+                # Conexión con AD_Weather
+                sckClima.connect((self.ipClima, int(self.puertoClima)))
+                print("Conectado al AD_Weather")
+                print("Recuperando temperatura...")
+                temperatura = int(sckClima.recv(4096).decode(FORMAT))
                 print("Temperatura recuperada")
+                sckClima.close()
 
                 mapa_serializado = [[str(item) for item in row] for row in self.mapa]
 
@@ -241,7 +241,6 @@ class AD_Engine:
                 #Reseteamos los campos necesarios
                 self.mapa = [["" for _ in range(KTAMANYO)] for _ in range(KTAMANYO)]
                 self.idsValidas = []
-                #self.sckClima.close()
                 
                 
         #Enviamos a los drones que todas las figuras han sido terminadas
@@ -268,7 +267,6 @@ class AD_Engine:
             if temperatura <= 0:
                     self.printMap()
                     producer.send(self.topicProductor, value='CANCELAR')
-                    self.sckClima.close()
                     self.salir()
             
             #self.sckClima.connect((self.ipClima, int(self.puertoClima)))

@@ -13,7 +13,7 @@ def main():
     
     socketClima = socket.socket()
     socketClima.bind(('0.0.0.0', int(os.getenv('PUERTO'))))
-    socketClima.listen(3)
+    socketClima.listen(1)
 
     while True:
         conexion, addr = socketClima.accept()
@@ -24,5 +24,5 @@ def main():
         temperatura_aleatoria = random.choice(ciudad_elegida["Temperatura"])
 
         conexion.send(str(temperatura_aleatoria).encode('utf-8'))
-        #conexion.close()
+        conexion.close()
 main()
