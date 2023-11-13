@@ -133,19 +133,15 @@ class AD_Engine:
         
         print(figuraActual['Nombre'])    
         try:
-            while len(self.idsValidas)+1 < self.dronesNecesarios:
+            while len(self.idsValidas) < self.dronesNecesarios:
                 print("self.idsValidas " + str(len(self.idsValidas)))
 
                 conn, addr = self.sckServidor.accept()
-                thread = threading.Thread(target=self.manageDrone, args=(conn, addr, figuraActual))
-                thread.start()
-                threads.append(thread)  # Guarda el hilo para unirse más tarde
+                self.manageDrone(conn, addr, figuraActual)
                 #time.sleep(0.3)
         except Exception as e:
             print(f"Error: {e}")
         finally:
-            for thread in threads:
-                thread.join()
             self.sckServidor.close()
             print("Servidor cerrado")
     
@@ -212,20 +208,14 @@ class AD_Engine:
         producer = KafkaProducer(bootstrap_servers=[self.boostrap_server],value_serializer=lambda x: 
                          json.dumps(x).encode('utf-8'))
         
-        # Nos conectamos al server del clima
-        #self.sckClima.connect((self.ipClima, int(self.puertoClima)))
-        #temperatura = int(self.sckClima.recv(4096).decode('utf-8'))
-        #self.sckClima.close()
+        
         # Mostrar mapa
         self.printMap()
         time.sleep(1)
         mapa_serializado = [[str(item) for item in row] for row in self.mapa]
 
-        temperatura = 1
-        
-        #matriz_serializada = json.dumps(mapa_serializado)
         # Mandar mapa por kafka
-        producer.send(self.topicProductor, value=mapa_serializado) #matriz_serializada
+        producer.send(self.topicProductor, value=mapa_serializado)
         print("Mapa mandado por Kafka")
         valor = None
         # Recibir mensajes kafka
@@ -233,20 +223,30 @@ class AD_Engine:
             if figura["Completada"] == False:
                 self.dronesNecesarios = len(figura["Drones"])
                 figuraActual = figura
-
+                temperatura=1
                 # Conectar nuevos drones
                 self.conectarDrones(figuraActual)
-
+                # Nos conectamos al server del clima
+                # self.sckClima.connect((self.ipClima, int(self.puertoClima)))
+                # temperatura = int(self.sckClima.recv(4096).decode('utf-8'))
+                # self.sckClima.close()
                 self.figura(temperatura, consumer, producer)             
                 
                 figura["Completada"] = True
+                
+                #Reseteamos los campos necesarios
+                self.mapa = [["" for _ in range(KTAMANYO)] for _ in range(KTAMANYO)]
                 self.idsValidas = []
+                
+        #Enviamos a los drones que todas las figuras han sido terminadas
+        producer.send(self.topicProductor, value='FIN')
 
             
     def figura(self , temperatura , consumer , producer):
         id, posx, posy, mov = "", "", "", ""
         drones_completados = 0
         consumidos = 0
+        consumos = self.dronesNecesarios
         while True:
             if drones_completados == self.dronesNecesarios:
                 self.printMap()
@@ -257,7 +257,7 @@ class AD_Engine:
                 return
             if temperatura <= 0:
                     self.printMap()
-                    print("CONDICIONES CLIMATICAS ADVERSAS. ESPECTACULO FINALIZADO")
+                    producer.send(self.topicProductor, value='CANCELAR')
                     self.sckClima.close()
                     self.salir()
             
@@ -269,20 +269,24 @@ class AD_Engine:
                 if mov == "COMPLETADO":
                     print(f'Consumidos: = {consumidos}')
                     drones_completados += 1
+                    
                     print(f'Lo otro: = {self.dronesNecesarios - drones_completados}')
                     print("self.mapa[int(posx)][int(posy)]  " + str(self.mapa[int(posx)][int(posy)]))
-                    self.mapa[int(posx)][int(posy)] = "\033[92m" + str(id) + "\033[0m"
-                    self.printMap()
-                    mapa_serializado = [[str(item) for item in row] for row in self.mapa]
-                    producer.send(self.topicProductor, value=mapa_serializado)     
-                    self.printMap()
-                    print("drones_completados " + str(drones_completados))
+                    if consumidos == consumos:
+                        self.mapa[int(posx)][int(posy)] = "\033[92m" + str(id) + "\033[0m"
+                        self.updateMap(id, posx, posy, mov)
+                        self.printMap()
+                        mapa_serializado = [[str(item) for item in row] for row in self.mapa]
+                        producer.send(self.topicProductor, value=mapa_serializado)     
+                        print("drones_completados " + str(drones_completados))
+                        consumidos -= 1
+                        consumidos = 0
                     break
                 else:
                     print(id + " " + mov)
                     # Actualizar mapa
                     self.updateMap(id, posx, posy, mov)
-                    if consumidos == self.dronesNecesarios - drones_completados:
+                    if consumidos ==consumos:
                         mapa_serializado = [[str(item) for item in row] for row in self.mapa]
                         producer.send(self.topicProductor, value=mapa_serializado)     
                         self.printMap()

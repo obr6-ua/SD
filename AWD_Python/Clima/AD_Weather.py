@@ -1,24 +1,26 @@
 import os
 import socket
 import json
-
-from random import randint
-
-HOST = '0.0.0.0'
+import random
 
 def main():
-    print("Iniciando AD_Weather...")
-    puerto = os.getenv('PUERTO')
 
+    with open('ciudades.json', 'r') as file:
+        ciudades = json.load(file)
+    
+    ciudad_elegida = random.choice(ciudades["Ciudades"])
+    
     socketClima = socket.socket()
-    socketClima.bind((HOST, int(puerto)))
+    socketClima.bind(('0.0.0.0', int(os.getenv('PUERTO'))))
     socketClima.listen(1)
 
     while True:
         conexion, addr = socketClima.accept()
         print("AD_Engine conectado.")
+        
+        # Seleccionar la tercera ciudad y una temperatura aleatoria de esa ciudad
+        ciudad_elegida = ciudades["Ciudades"][2]  # Tercera ciudad (Valencia)
+        temperatura_aleatoria = random.choice(ciudad_elegida["Temperatura"])
 
-        temperatura = randint(1, 15)
-
-        conexion.send(str(temperatura).encode('utf-8'))
+        conexion.send(str(temperatura_aleatoria).encode('utf-8'))
 main()

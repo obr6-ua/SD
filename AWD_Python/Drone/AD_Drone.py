@@ -8,9 +8,6 @@ import socket
 import os
 from prettytable import PrettyTable
 
-
-# from colorama import Fore, Back, Style
-
 #docker-compose run -e ID=1 -p 4001:4000 drone
 
 FORMAT = 'utf-8'
@@ -18,7 +15,7 @@ HEADER = 4096
 KTAMANYO = 20
 
 class AD_Drone:
-    def __init__(self, id=os.getenv("ID"), alias=None, token=None, x=1, y=1, finalx=None, finaly=None , topicConsumidor='engine_drones', topicProductor= 'drones_engine' , consumer=None , producer=None, state=False):
+    def __init__(self, id=os.getenv("ID"), alias=None, token=None, x=1, y=1, finalx=None, finaly=None, state=False):
         self.id = id
         self.alias = alias
         self.token = token
@@ -26,36 +23,32 @@ class AD_Drone:
         self.y = y
         self.finalx = finalx
         self.finaly = finaly
-        self.topicConsumidor = topicConsumidor
-        self.topicProductor =  topicProductor
-        self.consumer = consumer
-        self.producer = producer
         self.mapa = [["" for _ in range(KTAMANYO)] for _ in range(KTAMANYO)]
         self.state = state
 
+#No se usa
+    # def editUser(self, host, port):
+    #     ADDR_REGISTRO = (host, port)
+    #     try:
+    #         client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    #         client.connect(ADDR_REGISTRO)
+    #         print (f"Establecida conexión en [{ADDR_REGISTRO}]")
 
-    def editUser(self, host, port):
-        ADDR_REGISTRO = (host, port)
-        try:
-            client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            client.connect(ADDR_REGISTRO)
-            print (f"Establecida conexión en [{ADDR_REGISTRO}]")
+    #         alias = input("Alias antiguo: ")
+    #         alias2 = input("Nuevo alias: ")
 
-            alias = input("Alias antiguo: ")
-            alias2 = input("Nuevo alias: ")
+    #         cadena = "1:" + self.id + ":" + alias + ':' + alias2
 
-            cadena = "1:" + self.id + ":" + alias + ':' + alias2
+    #         client.send(cadena.encode(FORMAT))
 
-            client.send(cadena.encode(FORMAT))
+    #         self.alias = client.recv(HEADER).decode(FORMAT)
 
-            self.alias = client.recv(HEADER).decode(FORMAT)
+    #         print('Nuevo alias asignado.')
+    #     except Exception as e:
+    #         print("Fallo con el servidor de Registry")
+    #         print(e)
 
-            print('Nuevo alias asignado.')
-        except Exception as e:
-            print("Fallo con el servidor de Registry")
-            print(e)
-
-        client.close()
+    #     client.close()
 
     def registro(self, host, port):
         try:
@@ -114,16 +107,16 @@ class AD_Drone:
         print("Mensaje recibido del Engine", flush=True)
         if recibido != '':
             print(recibido)
-            recibido = recibido.split(':')  # Corregir esta línea
+            recibido = recibido.split(':')
 
             self.finalx = int(recibido[0])
             self.finaly = int(recibido[1])
 
             #self.iniciarKafka()
-
-            while True:
+            fin = False
+            while not fin:
                 if not self.state:
-                    producer.send(self.topicProductor, value=self.Movimiento().encode('utf-8'))
+                    producer.send('drones_engine', value=self.Movimiento().encode('utf-8'))
                 
                 msg_poll = consumer.poll(timeout_ms=1000)
 
@@ -135,20 +128,23 @@ class AD_Drone:
                             self.x = 1
                             self.y = 1
                             self.state = False
-                            self.logearse(host, port , producer, consumer)
+                            fin = self.logearse(host, port , producer, consumer)
+                            return True
+                        
+                        elif message.value == 'CANCELADO':
+                            print("CONDICIONES CLIMATICAS ADVERSAS. ESPECTACULO FINALIZADO")
+                            return False
+                        
+                        elif message.value == 'FIN':
+                            client.close()
+                            print('FIGURAS COMPLETADAS HIJODEPUTA')
+                            print('DIBLOOOO QUE GANSTER!!!')
+                            return True
                         else:
-                            self.mapa = message.value # Accede directamente al valor de la tupla
+                            self.mapa = message.value
                             self.printMap()
                             time.sleep(0.1)
-        client.close()
-        print('FIGURAS COMPLETADAS HIJODEPUTA')
-        print('DIBLOOOO QUE GANSTER!!!')
-        
-        return True
-            
-                
-        
-    
+
     #Funcion que indica el movimimiento del dron. Si no se mueve indica que ha completado y actualiza el estado del dron
     def Movimiento(self):
         if self.finalx > self.x:
@@ -178,7 +174,7 @@ class AD_Drone:
             kafka = os.getenv('IP')+':'+ os.getenv('PORT_KAFKA')
             # Creamos consumidor
             consumer = KafkaConsumer(
-                self.topicConsumidor,
+                'engine_drones',
                 bootstrap_servers=[kafka],
                 auto_offset_reset='earliest',
                 enable_auto_commit=True,
