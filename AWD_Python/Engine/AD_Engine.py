@@ -174,6 +174,9 @@ class AD_Engine:
             old_posx -= 1
         elif mov == 'W':
             old_posx += 1
+        elif mov == 'COMPLETADO':
+            self.mapa[new_posx][new_posy] = "\033[92m" + str(id) + "\033[0m"
+            return
 
         # Borrar el ID del dron de la posición anterior
         pos_anterior = self.mapa[old_posx][old_posy]
@@ -277,7 +280,7 @@ class AD_Engine:
                     drones_completados += 1
                     print(f'Consumos: = {consumos}')
                     print("self.mapa[int(posx)][int(posy)]  " + str(self.mapa[int(posx)][int(posy)]))
-                    self.mapa[int(posx)][int(posy)] = "\033[92m" + str(id) + "\033[0m"
+                    
                     self.updateMap(id, posx, posy, mov)
                     self.printMap()
                     mapa_serializado = [[str(item) for item in row] for row in self.mapa]
