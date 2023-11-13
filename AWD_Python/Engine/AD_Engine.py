@@ -263,34 +263,27 @@ class AD_Engine:
             
             #self.sckClima.connect((self.ipClima, int(self.puertoClima)))
             for message in consumer:
-                consumidos += 1
                 valor = message.value.decode(FORMAT)  # Obtiene el valor del mensaje
                 id, posx, posy, mov = valor.split(":")
                 if mov == "COMPLETADO":
                     print(f'Consumidos: = {consumidos}')
                     drones_completados += 1
-                    
-                    print(f'Lo otro: = {self.dronesNecesarios - drones_completados}')
+                    print(f'Consumos: = {consumos}')
                     print("self.mapa[int(posx)][int(posy)]  " + str(self.mapa[int(posx)][int(posy)]))
-                    if consumidos == consumos:
-                        self.mapa[int(posx)][int(posy)] = "\033[92m" + str(id) + "\033[0m"
-                        self.updateMap(id, posx, posy, mov)
-                        self.printMap()
-                        mapa_serializado = [[str(item) for item in row] for row in self.mapa]
-                        producer.send(self.topicProductor, value=mapa_serializado)     
-                        print("drones_completados " + str(drones_completados))
-                        consumidos -= 1
-                        consumidos = 0
+                    self.mapa[int(posx)][int(posy)] = "\033[92m" + str(id) + "\033[0m"
+                    self.updateMap(id, posx, posy, mov)
+                    self.printMap()
+                    mapa_serializado = [[str(item) for item in row] for row in self.mapa]
+                    producer.send(self.topicProductor, value=mapa_serializado)
+                    
                     break
                 else:
                     print(id + " " + mov)
                     # Actualizar mapa
                     self.updateMap(id, posx, posy, mov)
-                    if consumidos ==consumos:
-                        mapa_serializado = [[str(item) for item in row] for row in self.mapa]
-                        producer.send(self.topicProductor, value=mapa_serializado)     
-                        self.printMap()
-                        consumidos = 0
+                    mapa_serializado = [[str(item) for item in row] for row in self.mapa]
+                    producer.send(self.topicProductor, value=mapa_serializado)     
+                    self.printMap()
                     print("Actualizado", flush=True)
                     #temperatura = int(self.sckClima.recv(4096).decode('utf-8'))  
                     break
