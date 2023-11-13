@@ -213,12 +213,6 @@ class AD_Engine:
         # Mostrar mapa
         self.printMap()
         time.sleep(1)
-        mapa_serializado = [[str(item) for item in row] for row in self.mapa]
-
-        # Mandar mapa por kafka
-        producer.send(self.topicProductor, value=mapa_serializado)
-        print("Mapa mandado por Kafka")
-        valor = None
 
         # Conexión con AD_Weather
         self.sckClima.connect((self.ipClima, int(self.puertoClima)))
@@ -231,8 +225,14 @@ class AD_Engine:
                 # Conectar nuevos drones
                 self.conectarDrones(figuraActual)
 
-    
                 temperatura = int(self.sckClima.recv(4096).decode(FORMAT))
+                print("Temperatura recuperada")
+
+                mapa_serializado = [[str(item) for item in row] for row in self.mapa]
+
+                # Mandar mapa por kafka
+                producer.send(self.topicProductor, value=mapa_serializado)
+                print("Mapa mandado por Kafka")
 
                 self.figura(temperatura, consumer, producer)             
                 
@@ -241,7 +241,7 @@ class AD_Engine:
                 #Reseteamos los campos necesarios
                 self.mapa = [["" for _ in range(KTAMANYO)] for _ in range(KTAMANYO)]
                 self.idsValidas = []
-        self.sckClima.close()
+                #self.sckClima.close()
                 
                 
         #Enviamos a los drones que todas las figuras han sido terminadas
