@@ -194,8 +194,6 @@ class AD_Engine:
 
 
     def startKafka(self):
-        drones_completados = 0
-
         # Creamos consumidor
         consumer = KafkaConsumer(
             self.topicConsumidor,
@@ -218,18 +216,21 @@ class AD_Engine:
         producer.send(self.topicProductor, value=mapa_serializado)
         print("Mapa mandado por Kafka")
         valor = None
+
+        # Conexión con AD_Weather
+        self.sckClima.connect((self.ipClima, int(self.puertoClima)))
+        print("Conectado al AD_Weather")
         # Recibir mensajes kafka
         for figura in self.figuras:
             if figura["Completada"] == False:
                 self.dronesNecesarios = len(figura["Drones"])
                 figuraActual = figura
-                temperatura=1
                 # Conectar nuevos drones
                 self.conectarDrones(figuraActual)
-                # Nos conectamos al server del clima
-                # self.sckClima.connect((self.ipClima, int(self.puertoClima)))
-                # temperatura = int(self.sckClima.recv(4096).decode('utf-8'))
-                # self.sckClima.close()
+
+    
+                temperatura = int(self.sckClima.recv(4096).decode(FORMAT))
+
                 self.figura(temperatura, consumer, producer)             
                 
                 figura["Completada"] = True
@@ -237,17 +238,23 @@ class AD_Engine:
                 #Reseteamos los campos necesarios
                 self.mapa = [["" for _ in range(KTAMANYO)] for _ in range(KTAMANYO)]
                 self.idsValidas = []
+        self.sckClima.close()
+                
                 
         #Enviamos a los drones que todas las figuras han sido terminadas
         producer.send(self.topicProductor, value='FIN')
 
             
-    def figura(self , temperatura , consumer , producer):
+    def figura(self , temperatura, consumer , producer):
         id, posx, posy, mov = "", "", "", ""
         drones_completados = 0
         consumidos = 0
         consumos = self.dronesNecesarios
+
         while True:
+            # Obtenemos la temperatura
+            print("Temperatura: " + str(temperatura))
+
             if drones_completados == self.dronesNecesarios:
                 self.printMap()
                 time.sleep(5)
@@ -285,9 +292,8 @@ class AD_Engine:
                     producer.send(self.topicProductor, value=mapa_serializado)     
                     self.printMap()
                     print("Actualizado", flush=True)
-                    #temperatura = int(self.sckClima.recv(4096).decode('utf-8'))  
                     break
-            time.sleep(0.1)
+            time.sleep(0.3)
 
     def nuevoEspectaculo(self):
         # Reseteo informacion guardada

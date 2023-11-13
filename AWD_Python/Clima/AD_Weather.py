@@ -2,6 +2,7 @@ import os
 import socket
 import json
 import random
+import time
 
 def main():
 
@@ -23,4 +24,6 @@ def main():
         temperatura_aleatoria = random.choice(ciudad_elegida["Temperatura"])
 
         conexion.send(str(temperatura_aleatoria).encode('utf-8'))
+        time.sleep(0.9)
+        conexion.close()
 main()
