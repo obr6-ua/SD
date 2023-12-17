@@ -1,15 +1,22 @@
 from pymongo import MongoClient
 from random import randint
+#Practica 3
+from flask import Flask, request, jsonify
+from datetime import datetime, timedelta
+
 
 import hashlib
 import socket 
 import threading
 import sys
 import os
-
+#Practica 3
+import threading
 
 FORMAT = 'utf-8'
 HEADER = 4096
+
+app = Flask(__name__)
 
 # Inicializamos la base de datos
 # cliente = MongoClient(os.getenv('IP_BBDD') +':'+ os.getenv('PORT_BBDD'))
@@ -71,7 +78,7 @@ def atenderPeticion(conn, addr):
         info = conn.recv(HEADER).decode(FORMAT)  # Decodificar el mensaje recibido
         info.split(':')
         
-        client = MongoClient("mongodb://192.168.56.1:27017")
+        client = MongoClient("mongodb://192.168.23.1:27017")
     
         db = client['drones_db']
         
@@ -86,7 +93,7 @@ def atenderPeticion(conn, addr):
     except Exception as e:
         print("Se nos fue el cliente")
 
-def iniciar():
+def iniciarSocketServer():
     PORT = os.getenv('PORT_REGISTRY')
     SERVER = os.getenv('IP_REGISTRY')
     
@@ -105,10 +112,33 @@ def iniciar():
         thread = threading.Thread(target=atenderPeticion, args=(conn, addr))
         thread.start()
 
+@app.route('/register', methods=['POST'])
+def registrarApi():
+    data = request.json
+    drone_id = data.get('id')
+    # Ciframos el id y lo usamos como token para mandar
+    token = hashlib.sha256(drone_id.encode()).hexdigest()
+    hora = datetime.now() + timedelta(seconds=20)
+    #Dron
+    nuevo_dron = {"id": drone_id, "alias" : drone_id, "token" : token, "hora" : hora}
+    #Inserto el nuevo dron en db
+    client = MongoClient("mongodb://192.168.23.1:27017")
+    db = client['drones_db']
+    coleccion = db['drones']
+    coleccion.insert_one(nuevo_dron)
 
+    return jsonify({"message": "Dron registrado con éxito", "encoded_id": token}), 200
+
+def iniciar_flask_server():
+    app.run(debug=True, host='0.0.0.0', port=5000)
 
 def main():
-    iniciar()
+    thread_socket = threading.Thread(target=iniciarSocketServer)
+    thread_socket.start()
+
+    # Iniciar el servidor Flask en otro hilo
+    threading.Thread(target=iniciar_flask_server).start()
+
     
 main()
 

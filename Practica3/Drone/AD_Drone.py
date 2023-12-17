@@ -6,17 +6,37 @@ import time
 import sys
 import socket
 import os
+#Practica 3
+import requests
+
 from prettytable import PrettyTable
+from cryptography.fernet import Fernet
+from datetime import datetime
 
 #docker-compose run -e ID=1 -p 4001:4000 drone
 
 FORMAT = 'utf-8'
 HEADER = 4096
 KTAMANYO = 20
+URL_REGISTRY = "http://0.0.0.0:5000"
+URL_ENGINE = "http://0.0.0.0:5000"
+cipher_suite = Fernet(os.getenv('CLAVE_ENCRIPTADA'))
+
+# Función para encriptar un mensaje
+def encriptar_mensaje(mensaje):
+    mensaje_bytes = mensaje.encode()
+    mensaje_encriptado = cipher_suite.encrypt(mensaje_bytes)  # Encriptar
+    return mensaje_encriptado
+
+# Función para desencriptar un mensaje
+def desencriptar_mensaje(mensaje_encriptado):
+    mensaje_desencriptado = cipher_suite.decrypt(mensaje_encriptado)  # Desencriptar
+    return mensaje_desencriptado.decode() 
 
 class AD_Drone:
-    def __init__(self, id=os.getenv("ID"), alias=None, token=None, x=1, y=1, finalx=None, finaly=None, state=False):
+    def __init__(self, id=os.getenv("ID"), api=os.getenv("API"), alias=None, token=None, x=1, y=1, finalx=None, finaly=None, state=False):
         self.id = id
+        self.api = api
         self.alias = alias
         self.token = token
         self.x = x
@@ -26,44 +46,22 @@ class AD_Drone:
         self.mapa = [["" for _ in range(KTAMANYO)] for _ in range(KTAMANYO)]
         self.state = state
 
-#No se usa
-    # def editUser(self, host, port):
-    #     ADDR_REGISTRO = (host, port)
-    #     try:
-    #         client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    #         client.connect(ADDR_REGISTRO)
-    #         print (f"Establecida conexión en [{ADDR_REGISTRO}]")
-
-    #         alias = input("Alias antiguo: ")
-    #         alias2 = input("Nuevo alias: ")
-
-    #         cadena = "1:" + self.id + ":" + alias + ':' + alias2
-
-    #         client.send(cadena.encode(FORMAT))
-
-    #         self.alias = client.recv(HEADER).decode(FORMAT)
-
-    #         print('Nuevo alias asignado.')
-    #     except Exception as e:
-    #         print("Fallo con el servidor de Registry")
-    #         print(e)
-
-    #     client.close()
-
     def registro(self, host, port):
         try:
             ADDR_REGISTRO = (host, port)
             client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             client.connect(ADDR_REGISTRO)
-            print(f"Establecida conexión en [{ADDR_REGISTRO}]")
+            #print(f"Establecida conexión en [{ADDR_REGISTRO}]")
+            #escribir_log(f"Dron {self.id} conectado a Registry. {datetime.now()}")
 
             cadena = "1:" + self.id + ":" + self.id
 
-            client.send(cadena.encode(FORMAT))
+            client.send(encriptar_mensaje(cadena.encode(FORMAT)))
 
-            self.token = client.recv(HEADER).decode(FORMAT)
+            self.token = desencriptar_mensaje(client.recv(HEADER).decode(FORMAT))
 
-            print(f"He recibido el mensaje del Registry: {self.token}")
+            #print(f"He recibido el mensaje del Registry: {self.token}")
+            #escribir_log(f"Dron {id} ha recibido token del Registry. {datetime.now()}")
             
             return self
 
@@ -72,6 +70,18 @@ class AD_Drone:
             print(e)
 
         client.close()
+
+    def registroApi(self, url_registry):
+        respuesta = requests.post(url_registry + '/register', json={'id': self.id})
+        if respuesta.status_code == 200:
+            self.token = respuesta.json().get('encoded_id')
+            #print(f"He recibido el mensaje del Registry: {self.token}")
+            #escribir_log(f"Dron {self.id} ha recibido el mensaje del Registry: {self.token}. {datetime.now()}")
+        else:
+            return respuesta.status_code
+            #print("Error en la solicitud:", respuesta.status_code)
+            #escribir_log(f"Dron {self.id}: error contactando a Registry {datetime.now()}")
+
 
     def printMap(self):
         table = PrettyTable()
@@ -87,26 +97,38 @@ class AD_Drone:
 
 
     def logearse(self, host, port , producer , consumer):
-        ADDR_log = (host, port)
-        client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        try:
-            client.connect(ADDR_log)
-            print(self.token)
-        except:
-            print("El servidor está desconectado.")
-            client.close()
-            return
+        # Log en Engine por socket
+        if self.api == 'N':
+            ADDR_log = (host, port)
+            client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            try:
+                client.connect(ADDR_log)
+                #print(self.token)
+            except:
+                #print("El servidor está desconectado.")
+                #escribir_log(f"Dron {self.id}: El servidor está desconectado. {datetime.now()}")
+                client.close()
+                return
 
-        print(f"Establecida conexión en [{ADDR_log}]")
-
-        client.send(str(self.token).encode(FORMAT))
-
+            #print(f"Establecida conexión en [{ADDR_log}]")
+            #escribir_log(f"Dron {self.id}: Establecida conexión en [{ADDR_log}]. {datetime.now()}")
+            client.send(encriptar_mensaje(str(self.token).encode(FORMAT)))
+            recibido = desencriptar_mensaje(client.recv(HEADER).decode(FORMAT))
+        #Log en Engine por API
+        else:
+            respuesta = requests.post(URL_ENGINE + '/register', json={'token': self.token})
+            if respuesta.status_code == 200:
+                recibido = respuesta.json().get('coordenadas')
+            else:
+                #print("Error en la solicitud:", respuesta.status_code)
+                #print("Token expirado")
+                #escribir_log(f"Dron {self.id}: Error en la solicitud: {respuesta.status_code}. {datetime.now()}")
+                return 
         
-        recibido = client.recv(HEADER).decode(FORMAT)
-        
-        print("Mensaje recibido del Engine", flush=True)
+        #print("Mensaje recibido del Engine", flush=True)
+        #escribir_log(f"Dron {self.id}: Mensaje recibido del Engine. {datetime.now()}")
         if recibido != '':
-            print(recibido)
+            #print(recibido)
             recibido = recibido.split(':')
 
             self.finalx = int(recibido[0])
@@ -116,32 +138,30 @@ class AD_Drone:
             fin = False
             while not fin:
                 if not self.state:
-                    producer.send('drones_engine', value=self.Movimiento().encode('utf-8'))
+                    producer.send('drones_engine', value=encriptar_mensaje(self.Movimiento().encode('utf-8')))
                 
                 msg_poll = consumer.poll(timeout_ms=1000)
 
                 for _, messages in msg_poll.items():
                     for message in messages:
-                        print('Lo tengo')
-                        if message.value == 'RESET':
-                            print('Estoy reseteando...')
+                        if desencriptar_mensaje(message.value) == 'RESET':
+                            #print('Estoy reseteando...')
+                            #escribir_log(f"Dron {self.id}: Preparando nueva figura... {datetime.now()}")
                             self.x = 1
                             self.y = 1
                             self.state = False
                             fin = self.logearse(host, port , producer, consumer)
                             return True
                         
-                        elif message.value == 'CANCELADO':
-                            print("CONDICIONES CLIMATICAS ADVERSAS. ESPECTACULO FINALIZADO")
+                        elif desencriptar_mensaje(message.value) == 'CANCELADO':
+                            #print("CONDICIONES CLIMATICAS ADVERSAS. ESPECTACULO FINALIZADO")
                             return False
                         
-                        elif message.value == 'FIN':
+                        elif desencriptar_mensaje(message.value) == 'FIN':
                             client.close()
-                            print('FIGURAS COMPLETADAS HIJODEPUTA')
-                            print('DIBLOOOO QUE GANSTER!!!')
                             return True
                         else:
-                            self.mapa = message.value
+                            self.mapa = desencriptar_mensaje(message.value)
                             self.printMap()
                             time.sleep(0.1)
 
@@ -168,22 +188,24 @@ class AD_Drone:
             
     # ip y puerto engine, ip y puerto del kafka, ip y puerto de registry
     def main(self):
-        
+        if self.api == 'N':
             self.registro(os.getenv("IP"), int(os.getenv("PORT")))
+        else:
+            self.registroApi(URL_REGISTRY)
 
-            kafka = os.getenv('IP')+':'+ os.getenv('PORT_KAFKA')
-            # Creamos consumidor
-            consumer = KafkaConsumer(
-                'engine_drones',
-                bootstrap_servers=[kafka],
-                auto_offset_reset='earliest',
-                enable_auto_commit=True,
-                value_deserializer=lambda x: loads(x.decode('utf-8')))
+        kafka = os.getenv('IP')+':'+ os.getenv('PORT_KAFKA')
+        # Creamos consumidor
+        consumer = KafkaConsumer(
+            'engine_drones',
+            bootstrap_servers=[kafka],
+            auto_offset_reset='earliest',
+            enable_auto_commit=True,
+            value_deserializer=lambda x: loads(x.decode('utf-8')))
 
-            # Creamos productor
-            producer = KafkaProducer(bootstrap_servers=[kafka])      
-            self.logearse(os.getenv("IP"), int(os.getenv("PORT_ENGINE")) , producer , consumer)
-
+        # Creamos productor
+        producer = KafkaProducer(bootstrap_servers=[kafka])    
+        self.logearse(os.getenv("IP"), int(os.getenv("PORT_ENGINE")) , producer , consumer)
+            
 
 if __name__ == "__main__":
     drone = AD_Drone()

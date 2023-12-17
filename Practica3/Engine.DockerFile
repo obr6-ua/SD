@@ -1,10 +1,12 @@
 FROM alpine
 RUN apk add python3
 RUN apk add py3-pip
-RUN pip install colorama
 RUN pip install kafka-python
 RUN pip install pymongo
 RUN pip install prettytable
+RUN pip install datetime
+RUN pip install cryptography
+RUN pip install flask
 
 ADD Engine /opt/Engine
 

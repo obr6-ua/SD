@@ -4,16 +4,35 @@ import time
 import json
 import socket
 import threading
+from datetime import datetime
 from pymongo import MongoClient
+from cryptography.fernet import Fernet
 from kafka import KafkaConsumer
 from kafka import KafkaProducer
 from prettytable import PrettyTable
+from flask import Flask, jsonify
 #from random import randint
 
 JSON = "AwD_figuras.json"
 KTAMANYO = 20
 FORMAT = 'utf-8'
+cipher_suite = Fernet(os.getenv('CLAVE_ENCRIPTADA'))
+app = Flask(__name__)
 
+def escribir_log(mensaje, nombre_archivo="LogEngine"):
+    with open(f"{nombre_archivo}.log", "a") as archivo_log:
+        archivo_log.write(mensaje + "\n")
+        
+# Función para   encriptar un mensaje
+def encriptar_mensaje(mensaje):
+    mensaje_bytes = mensaje.encode()
+    mensaje_encriptado = cipher_suite.encrypt(mensaje_bytes)  # Encriptar
+    return mensaje_encriptado
+
+# Función para desencriptar un mensaje
+def desencriptar_mensaje(mensaje_encriptado):
+    mensaje_desencriptado = cipher_suite.decrypt(mensaje_encriptado)  # Desencriptar
+    return mensaje_desencriptado.decode() 
 
 # La clase Figuras almacena los datos de las figuras llegados desde el JSON
 class Figuras:
@@ -76,46 +95,56 @@ class AD_Engine:
             print()
 
         self.start()
+        
+
     
     def manageDrone(self, conn, addr, figuraActual):
-        print(f"Nuevo dron {addr} conectado.")
+        escribir_log(f"Nuevo dron {addr} conectado. {datetime.now()}")
         # Mensaje del dron a conectar
-        token = conn.recv(4096).decode(FORMAT)
-        
+        token = desencriptar_mensaje(conn.recv(4096).decode(FORMAT))
+        escribir_log(f"Comprobando token {addr}. {datetime.now()}")
         print(token)
         
         # Buscamos ese token en la bbdd
         registro = self.coleccion1.find_one({"token": token})
-
-        #Si existe pillamos los datos del dron
-        if registro:
-            id = registro['id'] 
-            print("ID RECUPERADO " + str(id))
-            # Le mandamos al dron posicion x e y asignadas
-            primer_dron = figuraActual["Drones"].pop(0)
-            posx = primer_dron.get("Posicion X", None) 
-            posy = primer_dron.get("Posicion Y", None)
-            
-            print('Mensaje: ' + str(posx) + ":" + str(posy))
-            
-            conn.send((str(posx) + ":" + str(posy)).encode(FORMAT))
-            
-            # Verificar si ya hay una ID en la posición 0
-            if self.mapa[1][1]:
-                # Si ya hay una ID, la concatenamos con la nueva ID utilizando "/"
-                self.mapa[1][1] += "|\033[91m" + id +"\033[0m"
-            else:
-                 # Si no hay una ID en la posición 0, simplemente asignamos la nueva ID en rojo
-                self.mapa[1][1] = "\033[91m" + id + "\033[0m"
-
-            # Me guardo el id del dron que ha logrado registrarse correctamente
-            with self.lock:
-                self.idsValidas.append(id)
+        if registro['hora'] > datetime.now():
+            escribir_log(f"Token expirado {addr}. {datetime.now()}")
             conn.close()
         else:
-            print("No se encontró ningún registro para el dron con ID y token especificados")
-            print("FIN")
-            conn.close()
+            #Si existe pillamos los datos del dron
+            if registro:
+                id = registro['id'] 
+                print("ID RECUPERADO " + str(id))
+                # Le mandamos al dron posicion x e y asignadas
+                primer_dron = figuraActual["Drones"].pop(0)
+                posx = primer_dron.get("Posicion X", None) 
+                posy = primer_dron.get("Posicion Y", None)
+                escribir_log(f"Nuevo dron ID:{id} conectado. {datetime.now()}")
+                print('Mensaje: ' + str(posx) + ":" + str(posy))
+                
+                #encriptar_mensaje(conn.send((str(posx) + ":" + str(posy)).encode(FORMAT)))
+                conn.send(encriptar_mensaje((str(posx) + ":" + str(posy)).encode(FORMAT)))
+                
+                # Verificar si ya hay una ID en la posición 0
+                if self.mapa[1][1]:
+                    # Si ya hay una ID, la concatenamos con la nueva ID utilizando "/"
+                    self.mapa[1][1] += "|\033[91m" + id +"\033[0m"
+                else:
+                    # Si no hay una ID en la posición 0, simplemente asignamos la nueva ID en rojo
+                    self.mapa[1][1] = "\033[91m" + id + "\033[0m"
+
+                # Me guardo el id del dron que ha logrado registrarse correctamente
+                with self.lock:
+                    self.idsValidas.append(id)
+                conn.close()
+            else:
+                print("No se encontró ningún registro para el dron con ID y token especificados")
+                print("FIN")
+                conn.close()
+            
+    @app.route('/map', methods=['GET'])
+    def get_map(self):
+        return jsonify(self.mapa)
     
     def conectarDrones(self, figuraActual):
         self.sckServidor = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -231,7 +260,7 @@ class AD_Engine:
                 mapa_serializado = [[str(item) for item in row] for row in self.mapa]
 
                 # Mandar mapa por kafka
-                producer.send(self.topicProductor, value=mapa_serializado)
+                producer.send(self.topicProductor, value=encriptar_mensaje(mapa_serializado))
                 print("Mapa mandado por Kafka")
 
                 self.figura(temperatura, consumer, producer)             
@@ -244,8 +273,7 @@ class AD_Engine:
                 
                 
         #Enviamos a los drones que todas las figuras han sido terminadas
-        producer.send(self.topicProductor, value='FIN')
-
+        producer.send(self.topicProductor, value=encriptar_mensaje('FIN'))
             
     def figura(self , temperatura, consumer , producer):
         id, posx, posy, mov = "", "", "", ""
@@ -256,35 +284,39 @@ class AD_Engine:
             print("Temperatura: " + str(temperatura))
 
             if drones_completados == self.dronesNecesarios:
-                self.printMap()
+                #self.printMap()
+                self.get_map()
                 time.sleep(5)
-                producer.send(self.topicProductor, value='RESET')
+                producer.send(self.topicProductor, value=encriptar_mensaje('RESET'))
                 print("COMPLETADO")
                 return
             if temperatura <= 0:
-                    self.printMap()
-                    producer.send(self.topicProductor, value='CANCELAR')
+                    #self.printMap()
+                    self.get_map()
+                    producer.send(self.topicProductor, value=encriptar_mensaje('CANCELAR'))
                     self.salir()
             
             #self.sckClima.connect((self.ipClima, int(self.puertoClima)))
             for message in consumer:
-                valor = message.value.decode(FORMAT)  # Obtiene el valor del mensaje
+                valor = desencriptar_mensaje(message.value).decode(FORMAT)  # Obtiene el valor del mensaje
                 id, posx, posy, mov = valor.split(":")
                 if mov == "COMPLETADO":
                     drones_completados += 1
                     
                     self.updateMap(id, posx, posy, mov)
-                    self.printMap()
+                    #self.printMap()
+                    self.get_map()
                     mapa_serializado = [[str(item) for item in row] for row in self.mapa]
-                    producer.send(self.topicProductor, value=mapa_serializado)
+                    producer.send(self.topicProductor, value=encriptar_mensaje(mapa_serializado))
                     
                     break
                 else:
                     # Actualizar mapa
                     self.updateMap(id, posx, posy, mov)
                     mapa_serializado = [[str(item) for item in row] for row in self.mapa]
-                    producer.send(self.topicProductor, value=mapa_serializado)     
-                    self.printMap()
+                    producer.send(self.topicProductor, value=encriptar_mensaje(mapa_serializado))     
+                    #self.printMap()
+                    self.get_map()
                     break
             time.sleep(0.3)
 
@@ -346,6 +378,8 @@ class AD_Engine:
 
 def main():
     AD_Engine()
+    app.run(debug=True)
 
 if __name__ == "__main__":
     main()
+    app.run(debug=True)

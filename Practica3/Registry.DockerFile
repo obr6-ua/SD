@@ -1,7 +1,6 @@
 FROM alpine
 RUN apk add python3
 RUN apk add py3-pip
-RUN pip install colorama
 RUN pip install pymongo
 
 ADD Registry .
