@@ -4,16 +4,35 @@ import time
 import json
 import socket
 import threading
+from datetime import datetime
 from pymongo import MongoClient
+from cryptography.fernet import Fernet
 from kafka import KafkaConsumer
 from kafka import KafkaProducer
 from prettytable import PrettyTable
+from flask import Flask, jsonify
 #from random import randint
 
 JSON = "AwD_figuras.json"
 KTAMANYO = 20
 FORMAT = 'utf-8'
+cipher_suite = Fernet(os.getenv('CLAVE_ENCRIPTADA'))
+app = Flask(__name__)
 
+def escribir_log(mensaje, nombre_archivo="LogEngine"):
+    with open(f"{nombre_archivo}.log", "a") as archivo_log:
+        archivo_log.write(mensaje + "\n")
+        
+# Función para   encriptar un mensaje
+def encriptar_mensaje(mensaje):
+    mensaje_bytes = mensaje.encode()
+    mensaje_encriptado = cipher_suite.encrypt(mensaje_bytes)  # Encriptar
+    return mensaje_encriptado
+
+# Función para desencriptar un mensaje
+def desencriptar_mensaje(mensaje_encriptado):
+    mensaje_desencriptado = cipher_suite.decrypt(mensaje_encriptado)  # Desencriptar
+    return mensaje_desencriptado.decode() 
 
 # La clase Figuras almacena los datos de las figuras llegados desde el JSON
 class Figuras:
@@ -76,16 +95,21 @@ class AD_Engine:
             print()
 
         self.start()
+        
+
     
     def manageDrone(self, conn, addr, figuraActual):
-        print(f"Nuevo dron {addr} conectado.")
+        escribir_log(f"Nuevo dron {addr} conectado.")
         # Mensaje del dron a conectar
-        token = conn.recv(4096).decode(FORMAT)
-        
+        token = desencriptar_mensaje(conn.recv(4096).decode(FORMAT))
+        escribir_log(f"Comprobando token {addr}.")
         print(token)
         
         # Buscamos ese token en la bbdd
         registro = self.coleccion1.find_one({"token": token})
+        if registro['hora'] > datetime.now():
+            escribir_log(f"Token expirado {addr}.")
+            conn.close()
 
         #Si existe pillamos los datos del dron
         if registro:
@@ -95,10 +119,10 @@ class AD_Engine:
             primer_dron = figuraActual["Drones"].pop(0)
             posx = primer_dron.get("Posicion X", None) 
             posy = primer_dron.get("Posicion Y", None)
-            
+            escribir_log(f"Nuevo dron ID:{id} conectado. {datetime.now()}")
             print('Mensaje: ' + str(posx) + ":" + str(posy))
             
-            conn.send((str(posx) + ":" + str(posy)).encode(FORMAT))
+            encriptar_mensaje(conn.send((str(posx) + ":" + str(posy)).encode(FORMAT)))
             
             # Verificar si ya hay una ID en la posición 0
             if self.mapa[1][1]:
@@ -116,6 +140,10 @@ class AD_Engine:
             print("No se encontró ningún registro para el dron con ID y token especificados")
             print("FIN")
             conn.close()
+            
+    @app.route('/map', methods=['GET'])
+    def get_map(self):
+        return jsonify(self.mapa)
     
     def conectarDrones(self, figuraActual):
         self.sckServidor = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -245,7 +273,11 @@ class AD_Engine:
                 
         #Enviamos a los drones que todas las figuras han sido terminadas
         producer.send(self.topicProductor, value='FIN')
-
+        
+    @app.route('/map', methods=['GET'])
+    def get_map(self):
+       # asumiendo que self.mapa es accesible aquí, o puedes generar el mapa según sea necesario
+       return jsonify(self.mapa)
             
     def figura(self , temperatura, consumer , producer):
         id, posx, posy, mov = "", "", "", ""
@@ -346,6 +378,8 @@ class AD_Engine:
 
 def main():
     AD_Engine()
+    app.run(debug=True)
 
 if __name__ == "__main__":
     main()
+    app.run(debug=True)

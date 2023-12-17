@@ -7,12 +7,30 @@ import sys
 import socket
 import os
 from prettytable import PrettyTable
+from cryptography.fernet import Fernet
 
 #docker-compose run -e ID=1 -p 4001:4000 drone
 
 FORMAT = 'utf-8'
 HEADER = 4096
 KTAMANYO = 20
+cipher_suite = Fernet(os.getenv('CLAVE_ENCRIPTADA'))
+
+
+def escribir_log(mensaje, nombre_archivo="LogDrone"):
+    with open(f"{nombre_archivo}.log", "a") as archivo_log:
+        archivo_log.write(mensaje + "\n")
+        
+# Función para   encriptar un mensaje
+def encriptar_mensaje(mensaje):
+    mensaje_bytes = mensaje.encode()
+    mensaje_encriptado = cipher_suite.encrypt(mensaje_bytes)  # Encriptar
+    return mensaje_encriptado
+
+# Función para desencriptar un mensaje
+def desencriptar_mensaje(mensaje_encriptado):
+    mensaje_desencriptado = cipher_suite.decrypt(mensaje_encriptado)  # Desencriptar
+    return mensaje_desencriptado.decode() 
 
 class AD_Drone:
     def __init__(self, id=os.getenv("ID"), alias=None, token=None, x=1, y=1, finalx=None, finaly=None, state=False):

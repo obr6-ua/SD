@@ -1,13 +1,82 @@
-version: '2'
+version: '3'
 services:
+  clima:
+    build:
+      context: .
+      dockerfile: Clima.DockerFile
+    ports:
+      - "3000:3000"
+    environment:
+      PUERTO: 3000
+    container_name: clima
+    working_dir: /opt/Clima
+    command: python /opt/Clima/AD_Weather.py
+
+  engine:
+    build:
+      context: .
+      dockerfile: Engine.DockerFile
+    ports:
+      - "3001:3001"
+    container_name: engine
+    command: sleep infinity
+    environment:
+      IP_BBDD: 192.168.56.1
+      IP_CLIMA: 192.168.56.1
+      IP_SERVER_GESTOR: 192.168.56.1
+      IP_ENGINE: 0.0.0.0
+      PUERTO_SERVER_GESTOR: 29092
+      PUERTO_ESCUCHA: 3001
+      PUERTO_BBDD: 27017
+      PUERTO_CLIMA: 3000
+      TOPIC_CONSUMIDOR: "drones_engine"
+      TOPIC_PRODUCTOR: "engine_drones"
+      CLAVE_ENCRIPTADA: "b'uErhONBMnC59GDVi71D3c3FySlDVbjokNCOkcXuIWWo='"
+    volumes:
+      - ./archivo.log:/opt/Engine/archivo.log
+      
+  registry:
+    build:
+      context: .
+      dockerfile: Registry.DockerFile
+    ports:
+      - "3002:3002"
+    command: python AD_Registry.py
+    environment:
+      IP_REGISTRY: 0.0.0.0
+      PORT_BBDD: 27017
+      PORT_REGISTRY: 3002
+    container_name: registry
+
+  mongo:
+    image: mongo
+    ports:
+      - "27017:27017"
+    container_name: mongo
+
+  drone:
+    build:
+      context: .
+      dockerfile: Drone.DockerFile
+    environment:
+      IP: 192.168.56.1
+      PORT_ENGINE: 3001
+      PORT: 3002
+      PORT_KAFKA: 29092
+      CLAVE_ENCRIPTADA: "b'uErhONBMnC59GDVi71D3c3FySlDVbjokNCOkcXuIWWo='"
+    
+    command: python AD_Drone.py
+    container_name: dron
+  
   zookeeper:
     image: confluentinc/cp-zookeeper:latest
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
     ports:
-      - 22181:2181
-  
+      - 2181:2181
+    container_name: zookeeper
+    
   kafka:
     image: confluentinc/cp-kafka:latest
     depends_on:
@@ -17,11 +86,11 @@ services:
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://192.168.56.1:29092
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-  mongo:
-    image: mongo:latest
-    ports:
-      - 27017:27017
+    container_name: kafka
+    
+
+
