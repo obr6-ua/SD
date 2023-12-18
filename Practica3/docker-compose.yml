@@ -57,7 +57,7 @@ services:
   drone:
     build:
       context: .
-      dockerfile: Drone.DockerFile
+      dockerfile: Drone2.DockerFile
     environment:
       IP: 192.168.23.1
       PORT_ENGINE: 3001

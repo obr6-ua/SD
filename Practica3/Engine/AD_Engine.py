@@ -10,14 +10,12 @@ from cryptography.fernet import Fernet
 from kafka import KafkaConsumer
 from kafka import KafkaProducer
 from prettytable import PrettyTable
-from flask import Flask, jsonify
 #from random import randint
 
 JSON = "AwD_figuras.json"
 KTAMANYO = 20
 FORMAT = 'utf-8'
 cipher_suite = Fernet(os.getenv('CLAVE_ENCRIPTADA'))
-app = Flask(__name__)
 
 def escribir_log(mensaje, nombre_archivo="LogEngine"):
     with open(f"{nombre_archivo}.log", "a") as archivo_log:
@@ -95,8 +93,19 @@ class AD_Engine:
             print()
 
         self.start()
-        
 
+    def MapaADiccionario(self):
+        mapa_dict = {}
+        for i in range(KTAMANYO):
+            for j in range(KTAMANYO):
+                key = f"{i},{j}"
+                mapa_dict[key] = self.mapa[i][j]
+        return mapa_dict
+
+    def actualizarMapaDB(self):
+        mapa_dict = self.MapaADiccionario()
+        # Aquí asumimos que tienes una colección llamada 'mapa' en tu base de datos
+        self.bd.mapa.update_one({'_id': 'ID_MAPA'}, {'$set': {'mapa': mapa_dict}}, upsert=True)
     
     def manageDrone(self, conn, addr, figuraActual):
         escribir_log(f"Nuevo dron {addr} conectado. {datetime.now()}")
@@ -141,10 +150,6 @@ class AD_Engine:
                 print("No se encontró ningún registro para el dron con ID y token especificados")
                 print("FIN")
                 conn.close()
-            
-    @app.route('/map', methods=['GET'])
-    def get_map(self):
-        return jsonify(self.mapa)
     
     def conectarDrones(self, figuraActual):
         self.sckServidor = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -154,8 +159,6 @@ class AD_Engine:
 
         print("AD_Engine a la espera de que los drones se conecten.")
         print("Drones necesarios: " + str(self.dronesNecesarios))
-
-        threads = []
         
         print(figuraActual['Nombre'])    
         try:
@@ -164,7 +167,6 @@ class AD_Engine:
 
                 conn, addr = self.sckServidor.accept()
                 self.manageDrone(conn, addr, figuraActual)
-                #time.sleep(0.3)
         except Exception as e:
             print(f"Error: {e}")
         finally:
@@ -220,6 +222,8 @@ class AD_Engine:
         else:
             # Colocar el dron en la nueva posición
             self.mapa[new_posx][new_posy] = id_str
+        
+        self.actualizarMapaDB()
 
     def startKafka(self):
         # Creamos consumidor
@@ -246,6 +250,7 @@ class AD_Engine:
                 figuraActual = figura
                 # Conectar nuevos drones
                 self.conectarDrones(figuraActual)
+                self.actualizarMapaDB()
                 
                 # Cleamos el socket al servidor del clima
                 sckClima = socket.socket()
@@ -378,8 +383,7 @@ class AD_Engine:
 
 def main():
     AD_Engine()
-    app.run(debug=True)
 
 if __name__ == "__main__":
     main()
-    app.run(debug=True)
+

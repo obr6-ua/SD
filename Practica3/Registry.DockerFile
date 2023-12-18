@@ -2,6 +2,7 @@ FROM alpine
 RUN apk add python3
 RUN apk add py3-pip
 RUN pip install pymongo
+RUN pip install cryptography
 
 ADD Registry .
 
