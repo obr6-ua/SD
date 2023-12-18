@@ -9,7 +9,12 @@ import os
 #Practica 3
 import requests
 
+#Practica 3
+import requests
+
 from prettytable import PrettyTable
+from cryptography.fernet import Fernet
+from datetime import datetime
 from cryptography.fernet import Fernet
 from datetime import datetime
 

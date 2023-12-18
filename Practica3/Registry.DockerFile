@@ -14,6 +14,7 @@ ENV PATH="/opt/venv/bin:$PATH"
 
 # Instalar pymongo dentro del entorno virtual
 RUN pip install pymongo
+RUN pip install cryptography
 
 # Agregar los archivos de tu aplicación
 ADD Registry .

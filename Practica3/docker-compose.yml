@@ -17,7 +17,6 @@ services:
       PUERTO_BBDD: 27017
       TOPIC_CONSUMIDOR: "drones_engine"
       TOPIC_PRODUCTOR: "engine_drones"
-      CLAVE_ENCRIPTADA: "uErhONBMnC59GDVi71D3c3FySlDVbjokNCOkcXuIWWo="
       
   registry:
     build:
@@ -41,7 +40,7 @@ services:
   drone:
     build:
       context: .
-      dockerfile: Drone.DockerFile
+      dockerfile: Drone2.DockerFile
     environment:
       IP: 192.168.23.1
       PORT_ENGINE: 3001
@@ -70,6 +69,7 @@ services:
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://192.168.23.1:29092
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://192.168.23.1:29092
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
