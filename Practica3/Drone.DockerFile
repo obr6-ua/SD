@@ -1,13 +1,16 @@
 FROM alpine
 
-RUN apk add python3
-RUN apk add py3-pip
-RUN pip install colorama
-RUN pip install kafka-python
-RUN pip install pymongo
-RUN pip install prettytable
+# Instalar python3 y pip
+RUN apk add --no-cache python3 py3-pip
 
+# Crear un entorno virtual
+RUN python3 -m venv /opt/venv
+
+# Asegurar que usamos el pip del entorno virtual
+ENV PATH="/opt/venv/bin:$PATH"
+
+# Instalar paquetes
+RUN pip install kafka-python pymongo prettytable requests cryptography
+
+# Agregar los archivos de tu aplicación
 ADD Drone .
-
-# sudo docker build -t nucleo -f Nucleo.DockerFile .
-# sudo docker run --net mynet --ip 127.0.0.3 -p 3000:3000 -it nucleo bin/sh
