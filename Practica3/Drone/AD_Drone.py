@@ -9,7 +9,12 @@ import os
 #Practica 3
 import requests
 
+#Practica 3
+import requests
+
 from prettytable import PrettyTable
+from cryptography.fernet import Fernet
+from datetime import datetime
 from cryptography.fernet import Fernet
 from datetime import datetime
 
@@ -20,7 +25,8 @@ HEADER = 4096
 KTAMANYO = 20
 URL_REGISTRY = "http://0.0.0.0:5000"
 URL_ENGINE = "http://0.0.0.0:5000"
-cipher_suite = Fernet(os.getenv('CLAVE_ENCRIPTADA'))
+clave_encriptada = os.getenv('CLAVE_ENCRIPTADA').encode()
+cipher_suite = Fernet(clave_encriptada)
 
 # Función para encriptar un mensaje
 def encriptar_mensaje(mensaje):
@@ -98,17 +104,17 @@ class AD_Drone:
 
     def logearse(self, host, port , producer , consumer):
         # Log en Engine por socket
-        if self.api == 'N':
-            ADDR_log = (host, port)
-            client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            try:
-                client.connect(ADDR_log)
-                #print(self.token)
-            except:
-                #print("El servidor está desconectado.")
-                #escribir_log(f"Dron {self.id}: El servidor está desconectado. {datetime.now()}")
-                client.close()
-                return
+        #if self.api == 'N':
+        ADDR_log = (host, port)
+        client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        try:
+            client.connect(ADDR_log)
+            #print(self.token)
+        except:
+            #print("El servidor está desconectado.")
+            #escribir_log(f"Dron {self.id}: El servidor está desconectado. {datetime.now()}")
+            client.close()
+            return
 
             #print(f"Establecida conexión en [{ADDR_log}]")
             #escribir_log(f"Dron {self.id}: Establecida conexión en [{ADDR_log}]. {datetime.now()}")

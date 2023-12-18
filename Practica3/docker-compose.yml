@@ -1,17 +1,5 @@
 version: '3'
 services:
-  clima:
-    build:
-      context: .
-      dockerfile: Clima.DockerFile
-    ports:
-      - "3000:3000"
-    environment:
-      PUERTO: 3000
-    container_name: clima
-    working_dir: /opt/Clima
-    command: python /opt/Clima/AD_Weather.py
-
   engine:
     build:
       context: .
@@ -22,18 +10,13 @@ services:
     command: sleep infinity
     environment:
       IP_BBDD: 192.168.23.1
-      IP_CLIMA: 192.168.23.1
       IP_SERVER_GESTOR: 192.168.23.1
       IP_ENGINE: 0.0.0.0
       PUERTO_SERVER_GESTOR: 29092
       PUERTO_ESCUCHA: 3001
       PUERTO_BBDD: 27017
-      PUERTO_CLIMA: 3000
       TOPIC_CONSUMIDOR: "drones_engine"
       TOPIC_PRODUCTOR: "engine_drones"
-      CLAVE_ENCRIPTADA: "b'uErhONBMnC59GDVi71D3c3FySlDVbjokNCOkcXuIWWo='"
-    volumes:
-      - ./archivo.log:/opt/Engine/archivo.log
       
   registry:
     build:
@@ -63,8 +46,8 @@ services:
       PORT_ENGINE: 3001
       PORT: 3002
       PORT_KAFKA: 29092
-      CLAVE_ENCRIPTADA: "b'uErhONBMnC59GDVi71D3c3FySlDVbjokNCOkcXuIWWo='"
-    
+      CLAVE_ENCRIPTADA: "uErhONBMnC59GDVi71D3c3FySlDVbjokNCOkcXuIWWo="
+
     command: python AD_Drone.py
     container_name: dron
   

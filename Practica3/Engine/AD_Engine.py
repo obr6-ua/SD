@@ -1,9 +1,12 @@
+#import base64
 import sys
 import os
 import time
 import json
 import socket
 import threading
+from datetime import datetime
+import requests
 from datetime import datetime
 from pymongo import MongoClient
 from cryptography.fernet import Fernet
@@ -12,10 +15,13 @@ from kafka import KafkaProducer
 from prettytable import PrettyTable
 #from random import randint
 
+API_KEY = 'e45bbc8bfead4e3311fdac9a7e9dd78c'
+
 JSON = "AwD_figuras.json"
 KTAMANYO = 20
 FORMAT = 'utf-8'
-cipher_suite = Fernet(os.getenv('CLAVE_ENCRIPTADA'))
+clave_encriptada = os.getenv('CLAVE_ENCRIPTADA').encode()
+cipher_suite = Fernet(clave_encriptada)
 
 def escribir_log(mensaje, nombre_archivo="LogEngine"):
     with open(f"{nombre_archivo}.log", "a") as archivo_log:
@@ -69,8 +75,6 @@ class AD_Engine:
         self.topicConsumidor = os.getenv('TOPIC_CONSUMIDOR')
         self.topicProductor =  os.getenv('TOPIC_PRODUCTOR')
         self.ipEngine = os.getenv('IP_ENGINE')
-        self.ipClima = os.getenv('IP_CLIMA')
-        self.puertoClima = os.getenv('PUERTO_CLIMA')
         self.idsValidas = []
         # Creamos mapa 20x20 vacio
         self.mapa = [["" for _ in range(KTAMANYO)] for _ in range(KTAMANYO)]
@@ -85,12 +89,9 @@ class AD_Engine:
         try:
             # Ejecuta una consulta de prueba
             info = self.cliente.server_info()
-            print("Conexión exitosa a MongoDB")
-            print("Versión de MongoDB:", info["version"])
-            print()
+            escribir_log("Conexión exitosa a MongoDB")
         except Exception:
-            print("No se pudo conectar a MongoDB. Verifica la configuración de conexión.")
-            print()
+            escribir_log("No se pudo conectar a MongoDB. Verifica la configuración de conexión.")
 
         self.start()
 
@@ -252,21 +253,22 @@ class AD_Engine:
                 self.conectarDrones(figuraActual)
                 self.actualizarMapaDB()
                 
-                # Cleamos el socket al servidor del clima
-                sckClima = socket.socket()
-                # Conexión con AD_Weather
-                sckClima.connect((self.ipClima, int(self.puertoClima)))
-                print("Conectado al AD_Weather")
-                print("Recuperando temperatura...")
-                temperatura = int(sckClima.recv(4096).decode(FORMAT))
-                print("Temperatura recuperada")
-                sckClima.close()
+                with open('nombre.txt', 'r') as archivo:
+                    # Leer el contenido
+                    ciudad_elegida = archivo.read().strip()
+                url = f"http://api.openweathermap.org/data/2.5/weather?q={ciudad_elegida}&appid={API_KEY}"
+                respuesta = requests.get(url)
+                if respuesta.status_code == 200:
+                    data = respuesta.json()
+                    # Extraer la temperatura y convertirla a un entero
+                    temperatura = round(data["main"]["temp"])
+                    escribir_log("Temperatura recuperada")
 
                 mapa_serializado = [[str(item) for item in row] for row in self.mapa]
 
                 # Mandar mapa por kafka
                 producer.send(self.topicProductor, value=encriptar_mensaje(mapa_serializado))
-                print("Mapa mandado por Kafka")
+                escribir_log("Mapa mandado por Kafka")
 
                 self.figura(temperatura, consumer, producer)             
                 
@@ -386,4 +388,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

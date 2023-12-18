@@ -35,8 +35,8 @@ def pagina_no_encontrada(error):
     return "<h1>La página que intentas acceder no existe ...</h1>"
 
 def main():
-    SERVER = '0.0.0.0'  # Ajustar si es necesario
-    PORT = 5000  # Ajustar si es necesario
+    SERVER = '0.0.0.0' 
+    PORT = 5000  
 
     app.run(port=PORT, host=SERVER)
 
