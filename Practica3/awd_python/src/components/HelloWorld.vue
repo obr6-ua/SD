@@ -24,7 +24,7 @@ export default {
     };
   },
   mounted() {
-    axios.get('http://localhost:5000/mapa')
+    axios.get('http://0.0.0.0:5000/mapa')
       .then(response => {
         this.mapData = response.data;
       })
