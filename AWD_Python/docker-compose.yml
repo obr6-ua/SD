@@ -1,17 +1,5 @@
 version: '3'
 services:
-  clima:
-    build:
-      context: .
-      dockerfile: Clima.DockerFile
-    ports:
-      - "3000:3000"
-    environment:
-      PUERTO: 3000
-    container_name: clima
-    working_dir: /opt/Clima
-    command: python /opt/Clima/AD_Weather.py
-
   engine:
     build:
       context: .
@@ -21,14 +9,12 @@ services:
     container_name: engine
     command: sleep infinity
     environment:
-      IP_BBDD: 192.168.56.1
-      IP_CLIMA: 192.168.56.1
-      IP_SERVER_GESTOR: 192.168.56.1
+      IP_BBDD: 192.168.23.1
+      IP_SERVER_GESTOR: 192.168.23.1
       IP_ENGINE: 0.0.0.0
       PUERTO_SERVER_GESTOR: 29092
       PUERTO_ESCUCHA: 3001
       PUERTO_BBDD: 27017
-      PUERTO_CLIMA: 3000
       TOPIC_CONSUMIDOR: "drones_engine"
       TOPIC_PRODUCTOR: "engine_drones"
       
@@ -54,12 +40,13 @@ services:
   drone:
     build:
       context: .
-      dockerfile: Drone.DockerFile
+      dockerfile: Drone2.DockerFile
     environment:
-      IP: 192.168.56.1
+      IP: 192.168.23.1
       PORT_ENGINE: 3001
       PORT: 3002
       PORT_KAFKA: 29092
+      CLAVE_ENCRIPTADA: "uErhONBMnC59GDVi71D3c3FySlDVbjokNCOkcXuIWWo="
 
     command: python AD_Drone.py
     container_name: dron
@@ -82,11 +69,9 @@ services:
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://192.168.56.1:29092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://192.168.23.1:29092
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
     container_name: kafka
     
-
-

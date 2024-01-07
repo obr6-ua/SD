@@ -4,6 +4,7 @@ import time
 import json
 import socket
 import threading
+import requests
 from datetime import datetime
 from pymongo import MongoClient
 from cryptography.fernet import Fernet
@@ -11,7 +12,11 @@ from kafka import KafkaConsumer
 from kafka import KafkaProducer
 from prettytable import PrettyTable
 from flask import Flask, jsonify
+from datetime import datetime
+
 #from random import randint
+
+API_KEY = 'e45bbc8bfead4e3311fdac9a7e9dd78c'
 
 JSON = "AwD_figuras.json"
 KTAMANYO = 20
@@ -95,8 +100,19 @@ class AD_Engine:
             print()
 
         self.start()
+    
+    def MapaADiccionario(self):
+        mapa_dict = {}
+        for i in range(KTAMANYO):
+            for j in range(KTAMANYO):
+                key = f"{i},{j}"
+                mapa_dict[key] = self.mapa[i][j]
+        return mapa_dict
         
-
+    def actualizarMapaDB(self):
+        mapa_dict = self.MapaADiccionario()
+        # Aquí asumimos que tienes una colección llamada 'mapa' en tu base de datos
+        self.bd.mapa.update_one({'_id': 'ID_MAPA'}, {'$set': {'mapa': mapa_dict}}, upsert=True)
     
     def manageDrone(self, conn, addr, figuraActual):
         escribir_log(f"Nuevo dron {addr} conectado.")
@@ -109,6 +125,7 @@ class AD_Engine:
         registro = self.coleccion1.find_one({"token": token})
         if registro['hora'] > datetime.now():
             escribir_log(f"Token expirado {addr}.")
+            self.coleccion1.delete_one({"id": token})
             conn.close()
 
         #Si existe pillamos los datos del dron
@@ -140,11 +157,7 @@ class AD_Engine:
             print("No se encontró ningún registro para el dron con ID y token especificados")
             print("FIN")
             conn.close()
-            
-    @app.route('/map', methods=['GET'])
-    def get_map(self):
-        return jsonify(self.mapa)
-    
+
     def conectarDrones(self, figuraActual):
         self.sckServidor = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.sckServidor.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -153,8 +166,6 @@ class AD_Engine:
 
         print("AD_Engine a la espera de que los drones se conecten.")
         print("Drones necesarios: " + str(self.dronesNecesarios))
-
-        threads = []
         
         print(figuraActual['Nombre'])    
         try:
@@ -220,6 +231,8 @@ class AD_Engine:
             # Colocar el dron en la nueva posición
             self.mapa[new_posx][new_posy] = id_str
 
+        self.actualizarMapaDB()
+
     def startKafka(self):
         # Creamos consumidor
         consumer = KafkaConsumer(
@@ -245,16 +258,18 @@ class AD_Engine:
                 figuraActual = figura
                 # Conectar nuevos drones
                 self.conectarDrones(figuraActual)
+                self.actualizarMapaDB()
                 
-                # Cleamos el socket al servidor del clima
-                sckClima = socket.socket()
-                # Conexión con AD_Weather
-                sckClima.connect((self.ipClima, int(self.puertoClima)))
-                print("Conectado al AD_Weather")
-                print("Recuperando temperatura...")
-                temperatura = int(sckClima.recv(4096).decode(FORMAT))
-                print("Temperatura recuperada")
-                sckClima.close()
+                with open('ciudad.txt', 'r') as archivo:
+                    # Leer el contenido
+                    ciudad_elegida = archivo.read().strip()
+                url = f"http://api.openweathermap.org/data/2.5/weather?q={ciudad_elegida}&appid={API_KEY}"
+                respuesta = requests.get(url)
+                if respuesta.status_code == 200:
+                    data = respuesta.json()
+                    # Extraer la temperatura y convertirla a un entero
+                    temperatura = round(data["main"]["temp"])
+                    escribir_log("Temperatura recuperada")
 
                 mapa_serializado = [[str(item) for item in row] for row in self.mapa]
 
@@ -273,11 +288,6 @@ class AD_Engine:
                 
         #Enviamos a los drones que todas las figuras han sido terminadas
         producer.send(self.topicProductor, value='FIN')
-        
-    @app.route('/map', methods=['GET'])
-    def get_map(self):
-       # asumiendo que self.mapa es accesible aquí, o puedes generar el mapa según sea necesario
-       return jsonify(self.mapa)
             
     def figura(self , temperatura, consumer , producer):
         id, posx, posy, mov = "", "", "", ""
