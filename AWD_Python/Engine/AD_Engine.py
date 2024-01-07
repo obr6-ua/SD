@@ -7,7 +7,6 @@ import threading
 import requests
 from datetime import datetime
 from pymongo import MongoClient
-from cryptography.fernet import Fernet
 from kafka import KafkaConsumer
 from kafka import KafkaProducer
 from prettytable import PrettyTable
@@ -21,23 +20,12 @@ API_KEY = 'e45bbc8bfead4e3311fdac9a7e9dd78c'
 JSON = "AwD_figuras.json"
 KTAMANYO = 20
 FORMAT = 'utf-8'
-cipher_suite = Fernet(os.getenv('CLAVE_ENCRIPTADA'))
 app = Flask(__name__)
 
 def escribir_log(mensaje, nombre_archivo="LogEngine"):
     with open(f"{nombre_archivo}.log", "a") as archivo_log:
         archivo_log.write(mensaje + "\n")
         
-# Función para   encriptar un mensaje
-def encriptar_mensaje(mensaje):
-    mensaje_bytes = mensaje.encode()
-    mensaje_encriptado = cipher_suite.encrypt(mensaje_bytes)  # Encriptar
-    return mensaje_encriptado
-
-# Función para desencriptar un mensaje
-def desencriptar_mensaje(mensaje_encriptado):
-    mensaje_desencriptado = cipher_suite.decrypt(mensaje_encriptado)  # Desencriptar
-    return mensaje_desencriptado.decode() 
 
 # La clase Figuras almacena los datos de las figuras llegados desde el JSON
 class Figuras:
@@ -117,7 +105,7 @@ class AD_Engine:
     def manageDrone(self, conn, addr, figuraActual):
         escribir_log(f"Nuevo dron {addr} conectado.")
         # Mensaje del dron a conectar
-        token = desencriptar_mensaje(conn.recv(4096).decode(FORMAT))
+        token = conn.recv(4096).decode(FORMAT)
         escribir_log(f"Comprobando token {addr}.")
         print(token)
         
@@ -139,7 +127,7 @@ class AD_Engine:
             escribir_log(f"Nuevo dron ID:{id} conectado. {datetime.now()}")
             print('Mensaje: ' + str(posx) + ":" + str(posy))
             
-            encriptar_mensaje(conn.send((str(posx) + ":" + str(posy)).encode(FORMAT)))
+            conn.send((str(posx) + ":" + str(posy)).encode(FORMAT))
             
             # Verificar si ya hay una ID en la posición 0
             if self.mapa[1][1]:

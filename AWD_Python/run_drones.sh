@@ -13,7 +13,7 @@ do
         API=S
     fi
 
-    COMMAND= "echo 'Ejecutando docker-compose para ID=$ID y puerto $PORT:4000 y API=$API'; docker-compose run -e ID=$ID -e API=$API -p $PORT:4000 drone"
+    COMMAND="echo 'Ejecutando docker-compose para ID=$ID y puerto $PORT:4000 y API=$API'; docker-compose run -e ID=$ID -e API=$API -p $PORT:4000 drone"
 
     # Abrir una nueva terminal y ejecutar el comando
     gnome-terminal -- /bin/bash -c "$COMMAND"

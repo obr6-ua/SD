@@ -1,6 +1,7 @@
 from pymongo import MongoClient
 from random import randint
 
+from flask import Flask, jsonify
 import hashlib
 import socket , ssl
 import threading
@@ -14,18 +15,6 @@ FORMAT = 'utf-8'
 HEADER = 4096
 
 app = Flask(__name__)
-cipher_suite = Fernet(os.getenv('CLAVE_ENCRIPTADA'))
-
-# Función para encriptar un mensaje
-def encriptar_mensaje(mensaje):
-    mensaje_bytes = mensaje.encode()
-    mensaje_encriptado = cipher_suite.encrypt(mensaje_bytes)  # Encriptar
-    return mensaje_encriptado
-
-# Función para desencriptar un mensaje
-def desencriptar_mensaje(mensaje_encriptado):
-    mensaje_desencriptado = cipher_suite.decrypt(mensaje_encriptado)  # Desencriptar
-    return mensaje_desencriptado.decode() 
 
 # Inicializamos la base de datos
 # cliente = MongoClient(os.getenv('IP_BBDD') +':'+ os.getenv('PORT_BBDD'))
@@ -138,24 +127,21 @@ def registrarApi():
     #Dron
     nuevo_dron = {"id": drone_id, "alias" : drone_id, "token" : token, "hora" : hora}
     #Inserto el nuevo dron en db
-    client = MongoClient("mongodb://192.168.23.1:27017")
+    client = MongoClient("mongodb://10.0.2.15:27017")
     db = client['drones_db']
     coleccion = db['drones']
     coleccion.insert_one(nuevo_dron)
 
-    return jsonify({"message": "Dron registrado con éxito", "encoded_id": token}), 200
+    return jsonify({"message": "Dron registrado con éxito", "token": token}), 200
 
 
 def iniciar_flask_server():
     app.run(debug=True, host='0.0.0.0', port=5000)
 
 def main():
-    thread_socket = threading.Thread(target=iniciarSocketServer)
-    thread_socket.start()
 
-    # Iniciar el servidor Flask en otro hilo
-    threading.Thread(target=iniciar_flask_server).start()
-
+        thread = threading.Thread(target=iniciarSocketServer)
+        thread.start()
     
 main()
 

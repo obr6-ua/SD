@@ -19,7 +19,7 @@ ENV PATH="/app/venv/bin:$PATH"
 
 # Instalar paquetes en el entorno virtual
 # Aquí, usamos directamente el pip del entorno virtual
-RUN pip install kafka-python pymongo colorama prettytable flask 
+RUN pip install kafka-python pymongo colorama prettytable flask requests
 
 ADD Engine .
 ADD Certificado .

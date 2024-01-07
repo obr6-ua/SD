@@ -1,5 +1,4 @@
 from kafka import KafkaConsumer, KafkaProducer
-from multiprocessing import Process
 from json import loads
 import json
 import time
@@ -7,34 +6,22 @@ import sys
 import socket
 import ssl
 import os
+import requests
 from prettytable import PrettyTable
-from cryptography.fernet import Fernet
 
 #docker-compose run -e ID=1 -p 4001:4000 drone
 
-
-# Aquí debes poner la ruta a tu certificado y clave privada
 CERT_FILE = 'mi_certificado.pem'
 FORMAT = 'utf-8'
 HEADER = 4096
 KTAMANYO = 20
-cipher_suite = Fernet(os.getenv('CLAVE_ENCRIPTADA'))
-
+API=os.getenv("API")
+URL = "http://0.0.0.0:5000"
 
 def escribir_log(mensaje, nombre_archivo="LogDrone"):
     with open(f"{nombre_archivo}.log", "a") as archivo_log:
         archivo_log.write(mensaje + "\n")
         
-# Función para   encriptar un mensaje
-def encriptar_mensaje(mensaje):
-    mensaje_bytes = mensaje.encode()
-    mensaje_encriptado = cipher_suite.encrypt(mensaje_bytes)  # Encriptar
-    return mensaje_encriptado
-
-# Función para desencriptar un mensaje
-def desencriptar_mensaje(mensaje_encriptado):
-    mensaje_desencriptado = cipher_suite.decrypt(mensaje_encriptado)  # Desencriptar
-    return mensaje_desencriptado.decode() 
 
 class AD_Drone:
     def __init__(self, id=os.getenv("ID"), alias=None, token=None, x=1, y=1, finalx=None, finaly=None, state=False):
@@ -72,6 +59,13 @@ class AD_Drone:
 
     #     client.close()
 
+
+    def registroApi(self, url_registry):
+        respuesta = requests.post(url_registry + '/register', json={'id': self.id})
+        if respuesta.status_code == 200:
+            self.token = respuesta.json().get('token')
+        else:
+            return respuesta.status_code
 
     def registro(self, host, port):
         try:
@@ -197,21 +191,23 @@ class AD_Drone:
             
     # ip y puerto engine, ip y puerto del kafka, ip y puerto de registry
     def main(self):
-        
+        if API == 'N':
             self.registro(os.getenv("IP"), int(os.getenv("PORT")))
+        else:
+            self.registroApi(URL)
 
-            kafka = os.getenv('IP')+':'+ os.getenv('PORT_KAFKA')
-            # Creamos consumidor
-            consumer = KafkaConsumer(
-                'engine_drones',
-                bootstrap_servers=[kafka],
-                auto_offset_reset='earliest',
-                enable_auto_commit=True,
-                value_deserializer=lambda x: loads(x.decode('utf-8')))
+        kafka = os.getenv('IP')+':'+ os.getenv('PORT_KAFKA')
+        # Creamos consumidor
+        consumer = KafkaConsumer(
+            'engine_drones',
+            bootstrap_servers=[kafka],
+            auto_offset_reset='earliest',
+            enable_auto_commit=True,
+            value_deserializer=lambda x: loads(x.decode('utf-8')))
 
-            # Creamos productor
-            producer = KafkaProducer(bootstrap_servers=[kafka])      
-            self.logearse(os.getenv("IP"), int(os.getenv("PORT_ENGINE")) , producer , consumer)
+        # Creamos productor
+        producer = KafkaProducer(bootstrap_servers=[kafka])      
+        self.logearse(os.getenv("IP"), int(os.getenv("PORT_ENGINE")) , producer , consumer)
 
 
 if __name__ == "__main__":

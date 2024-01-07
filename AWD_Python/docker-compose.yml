@@ -40,13 +40,13 @@ services:
   drone:
     build:
       context: .
-      dockerfile: Drone2.DockerFile
+      dockerfile: Drone.DockerFile
     environment:
       IP: 10.0.2.15
       PORT_ENGINE: 3001
       PORT: 3002
       PORT_KAFKA: 29092
-    command: python AD_Drone.py
+    command: sleep infinity
     container_name: dron
   
   zookeeper:
