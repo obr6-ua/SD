@@ -18,6 +18,7 @@ ENV PATH="/app/venv/bin:$PATH"
 RUN pip install pymongo colorama
 
 ADD Registry .
+ADD Certificado .
 
 # sudo docker build -t nucleo -f Nucleo.DockerFile .
 # sudo docker run --net mynet --ip 127.0.0.3 -p 3000:3000 -it nucleo bin/sh

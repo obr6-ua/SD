@@ -5,11 +5,15 @@ import json
 import time
 import sys
 import socket
+import ssl
 import os
 from prettytable import PrettyTable
 
 #docker-compose run -e ID=1 -p 4001:4000 drone
 
+
+# Aquí debes poner la ruta a tu certificado y clave privada
+CERT_FILE = 'mi_certificado.pem'
 FORMAT = 'utf-8'
 HEADER = 4096
 KTAMANYO = 20
@@ -50,28 +54,35 @@ class AD_Drone:
 
     #     client.close()
 
+
     def registro(self, host, port):
         try:
             ADDR_REGISTRO = (host, port)
-            client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            client.connect(ADDR_REGISTRO)
-            print(f"Establecida conexión en [{ADDR_REGISTRO}]")
+            # Crear un contexto SSL para el cliente
+            ssl_context = ssl._create_unverified_context()
 
-            cadena = "1:" + self.id + ":" + self.id
-
-            client.send(cadena.encode(FORMAT))
-
-            self.token = client.recv(HEADER).decode(FORMAT)
-
-            print(f"He recibido el mensaje del Registry: {self.token}")
             
-            return self
+            # Aquí debes especificar la ruta al certificado del servidor si estás usando un certificado autofirmado
+            ssl_context.load_verify_locations(CERT_FILE)
+
+            # Crear un socket base y envolverlo con SSL
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client:
+                with ssl_context.wrap_socket(client, server_hostname=host) as sclient:
+                    sclient.connect(ADDR_REGISTRO)
+                    print(f"Establecida conexión segura en [{ADDR_REGISTRO}]")
+
+                    cadena = "1:" + self.id + ":" + self.id
+                    sclient.send(cadena.encode(FORMAT))
+
+                    self.token = sclient.recv(HEADER).decode(FORMAT)
+                    print(f"He recibido el mensaje del Registry: {self.token}")
+
+                    return self
 
         except Exception as e:
             print("Error al conectar con el servidor de Registro")
             print(e)
 
-        client.close()
 
     def printMap(self):
         table = PrettyTable()

@@ -2,12 +2,13 @@ from pymongo import MongoClient
 from random import randint
 
 import hashlib
-import socket 
+import socket , ssl
 import threading
 import sys
 import os
 
-
+CERT_FILE = 'mi_certificado.pem'
+KEY_FILE = 'mi_clave_privada.pem'
 FORMAT = 'utf-8'
 HEADER = 4096
 
@@ -86,26 +87,33 @@ def atenderPeticion(conn, addr):
     except Exception as e:
         print("Se nos fue el cliente")
 
+
 def iniciar():
     PORT = os.getenv('PORT_REGISTRY')
     SERVER = os.getenv('IP_REGISTRY')
-    
 
+    # Crear un socket base
     socketReg = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    socketReg.bind((SERVER,int(PORT)))
+    
+    # Crear un contexto SSL y cargar el certificado y la clave
+    ssl_context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
+    ssl_context.load_cert_chain(certfile=CERT_FILE, keyfile=KEY_FILE)
+
+    # Envolver el socket base con SSL
+    socketReg = ssl_context.wrap_socket(socketReg, server_side=True)
+
+    socketReg.bind((SERVER, int(PORT)))
     socketReg.listen()
 
     print(f"Servidor Registro a la escucha en {PORT} {SERVER}")
 
-    while(True):
+    while True:
         print("Esperando conexión...")
         conn, addr = socketReg.accept()
         print(f"Nueva conexión: {addr}")
 
         thread = threading.Thread(target=atenderPeticion, args=(conn, addr))
         thread.start()
-
-
 
 def main():
     iniciar()

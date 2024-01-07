@@ -18,6 +18,7 @@ ENV PATH="/app/venv/bin:$PATH"
 # Aquí, usamos directamente el pip del entorno virtual
 RUN pip install kafka-python pymongo colorama prettytable
 ADD Drone .
+ADD Certificado/mi_certificado.pem .
 
 # sudo docker build -t nucleo -f Nucleo.DockerFile .
 # sudo docker run --net mynet --ip 127.0.0.3 -p 3000:3000 -it nucleo bin/sh
