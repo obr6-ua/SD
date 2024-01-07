@@ -214,19 +214,7 @@ public class AD_Engine {
 
 	}
 
-	public void main(String[] args) {
-		String servidoresBootstrap = "192.168.56.1:9092";
-		ArrayList<RegistroDrones> registro = new ArrayList<RegistroDrones>();
-		int dronesRegistrados = 0;
-		String mensajeSck = "";
-		int maxId = 0;
-//		InetAddress direccionIP = null;
-
-		// AD_Engine modo CONSUMIDOR
-		// topic = "productor_consumidor"
-		String topic_consumidor = "drones_engine";
-		String grupo = "Engine";
-		Properties props_consumidor = new Properties();
+	public void configuraConsumidor(Properties p_consumidor){
 		props_consumidor.setProperty(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, servidoresBootstrap);
 		props_consumidor.setProperty(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
 		props_consumidor.setProperty(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG,
@@ -234,15 +222,49 @@ public class AD_Engine {
 		props_consumidor.setProperty(ConsumerConfig.GROUP_ID_CONFIG, grupo);
 		props_consumidor.setProperty(ConsumerConfig.GROUP_INSTANCE_ID_CONFIG, "Engine");
 		props_consumidor.setProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
+	}
+
+	configuraProductor(Properties p_productor){
+		props_productor.setProperty(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, servidoresBootstrap);
+		props_productor.setProperty(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
+		props_productor.setProperty(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
+	}
+
+	public boolean compruebaArgs(String[] args){
+		boolean check = true;
+		if(args.length != 4){
+            System.out.println("Error: Se debe ejecutar el servidor de la siguiente forma:");
+            System.out.println("./AD_Engine <puerto_ecucha> <numero_drones> <IP_server_gestor> <puerto_server_gestor> <IP_AD_Weather> <puerto_AD_Weather>");
+           check = false;
+        }
+		return check;
+	}
+	
+	public void main(String[] args) {
+		String servidoresBootstrap = "192.168.56.1:9092";
+		ArrayList<RegistroDrones> registro = new ArrayList<RegistroDrones>();
+		int dronesRegistrados = 0;
+		String mensajeSck = "";
+		int maxId = 0;
+
+		if(!compruebaArgs()){
+			System.exit(-1);
+		}
+
+
+		// AD_Engine modo CONSUMIDOR
+		// topic = "productor_consumidor"
+		String topic_consumidor = "drones_engine";
+		String grupo = "Engine";
+		Properties props_consumidor = new Properties();
+		configuraConsumidor(props_consumidor);
 		KafkaConsumer<String, String> consumidor = new KafkaConsumer<>(props_consumidor);
 		consumidor.subscribe(Collections.singleton(topic_consumidor));
 
 		// AD_Engine modo PRODUCTOR
 		String topic_productor = "engine_drones";
 		Properties props_productor = new Properties();
-		props_productor.setProperty(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, servidoresBootstrap);
-		props_productor.setProperty(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
-		props_productor.setProperty(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
+		configuraProductor(props_productor);
 		KafkaProducer<String, String> productor = new KafkaProducer<>(props_productor);
 
 		// Nos conectamos a la BBDD para recibir la informacion guardada del registry
@@ -306,7 +328,7 @@ public class AD_Engine {
 				skCliente.close();
 			}
 			skServidor.close();
-			System.exit(0);
+			//System.exit(0);
 		} catch (Exception e) {
 			System.out.println("Ha fallado el AD_Engine al comunicarse por socket con el dron");
 		}

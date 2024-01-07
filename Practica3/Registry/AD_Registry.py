@@ -1,15 +1,18 @@
 from pymongo import MongoClient
 from random import randint
+#Practica 3
+from flask import Flask, request, jsonify
+from datetime import datetime, timedelta
+from cryptography.fernet import Fernet
 
 import hashlib
-import socket , ssl
+import socket 
 import threading
 import sys
 import os
 #Practica 3
 import threading
-CERT_FILE = 'mi_certificado.pem'
-KEY_FILE = 'mi_clave_privada.pem'
+
 FORMAT = 'utf-8'
 HEADER = 4096
 
@@ -54,41 +57,27 @@ def registrarDron(alias, id , conn , coleccion):
         
         #Recorto el hash para que asi sea mas dificil averiguar como se genera el token
         token = sha256[10:25]
-        hora = datetime.now() + timedelta(seconds=20)
         
         #Dron
-        nuevo_dron = {"id": id, "alias" : alias, "token" : token, "hora" : hora}
+        nuevo_dron = {"id": id, "alias" : alias, "token" : token}
         
         #Inserto el nuevo dron en db
         coleccion.insert_one(nuevo_dron)
         
         print("Enviando mensaje al dron")
-        conn.send(token.encode(FORMAT))
+        conn.send(encriptar_mensaje(token.encode(FORMAT)))
         conn.close()
     except Exception as e:
         print("ME CAGO EN DIOS")
         print(e)
     
-    
-
-def editarDron(id, alias, conn , coleccion):
-    
-    nuevo_valor = {
-        "$set": {
-            "alias": alias # Agrega los campos y valores que deseas actualizar
-        }
-    }
-    
-    coleccion.update_one({"id": id}, nuevo_valor)
-    
-    conn.close()
 
 def atenderPeticion(conn, addr):
     try:
-        info = conn.recv(HEADER).decode(FORMAT)  # Decodificar el mensaje recibido
+        info = desencriptar_mensaje(conn.recv(HEADER)).decode(FORMAT)  # Decodificar el mensaje recibido
         info.split(':')
         
-        client = MongoClient("mongodb://10.0.2.15:27017")
+        client = MongoClient("mongodb://192.168.23.1:27017")
     
         db = client['drones_db']
         
@@ -103,30 +92,21 @@ def atenderPeticion(conn, addr):
 def iniciarSocketServer():
     PORT = os.getenv('PORT_REGISTRY')
     SERVER = os.getenv('IP_REGISTRY')
-
-    # Crear un socket base
-    socketReg = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     
-    # Crear un contexto SSL y cargar el certificado y la clave
-    ssl_context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
-    ssl_context.load_cert_chain(certfile=CERT_FILE, keyfile=KEY_FILE)
 
-    # Envolver el socket base con SSL
-    socketReg = ssl_context.wrap_socket(socketReg, server_side=True)
-
-    socketReg.bind((SERVER, int(PORT)))
+    socketReg = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    socketReg.bind((SERVER,int(PORT)))
     socketReg.listen()
 
     print(f"Servidor Registro a la escucha en {PORT} {SERVER}")
 
-    while True:
+    while(True):
         print("Esperando conexión...")
         conn, addr = socketReg.accept()
         print(f"Nueva conexión: {addr}")
 
         thread = threading.Thread(target=atenderPeticion, args=(conn, addr))
         thread.start()
-
 
 @app.route('/register', methods=['POST'])
 def registrarApi():
@@ -144,7 +124,6 @@ def registrarApi():
     coleccion.insert_one(nuevo_dron)
 
     return jsonify({"message": "Dron registrado con éxito", "encoded_id": token}), 200
-
 
 def iniciar_flask_server():
     app.run(debug=True, host='0.0.0.0', port=5000)
