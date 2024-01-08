@@ -24,7 +24,7 @@ services:
       dockerfile: Engine.DockerFile
     ports:
       - "5000:5000"
-    container_name: engine
+    container_name: api_engine
     command: python API_Engine.py
     environment:
       IP_BBDD: 10.0.2.15
@@ -59,7 +59,7 @@ services:
       IP: 0.0.0.0
       PORT_BBDD: 27017
       PORT: 5001
-    container_name: registry
+    container_name: api_registry
 
   mongo:
     image: mongo:4.4

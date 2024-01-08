@@ -16,7 +16,7 @@ FORMAT = 'utf-8'
 HEADER = 4096
 KTAMANYO = 20
 API=os.getenv("API")
-URL = "http://0.0.0.0:5000"
+URL = "http://10.0.2.15:5000"
 
 def escribir_log(mensaje, nombre_archivo="LogDrone"):
     with open(f"{nombre_archivo}.log", "a") as archivo_log:
