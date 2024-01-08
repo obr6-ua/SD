@@ -9,8 +9,8 @@ services:
     container_name: engine
     command: sleep infinity
     environment:
-      IP_BBDD: 10.0.2.15
-      IP_SERVER_GESTOR: 10.0.2.15
+      IP_BBDD: 192.168.23.1
+      IP_SERVER_GESTOR: 192.168.23.1
       IP_ENGINE: 0.0.0.0
       PUERTO_SERVER_GESTOR: 29092
       PUERTO_ESCUCHA: 3001
@@ -24,13 +24,13 @@ services:
       dockerfile: Engine.DockerFile
     ports:
       - "5000:5000"
-    container_name: engine
+    container_name: api_engine
     command: python API_Engine.py
     environment:
-      IP_BBDD: 10.0.2.15
-      IP_SERVER_GESTOR: 10.0.2.15
+      IP_BBDD: 192.168.23.1
+      IP_SERVER_GESTOR: 192.168.23.1
       IP_ENGINE: 0.0.0.0
-      PUERTO_ESCUCHA: 3001
+      PUERTO_ESCUCHA: 5000
       PUERTO_BBDD: 27017
       TOPIC_CONSUMIDOR: "drones_engine"
       TOPIC_PRODUCTOR: "engine_drones"
@@ -59,7 +59,7 @@ services:
       IP: 0.0.0.0
       PORT_BBDD: 27017
       PORT: 5001
-    container_name: registry
+    container_name: api_registry
 
   mongo:
     image: mongo:4.4
@@ -72,7 +72,7 @@ services:
       context: .
       dockerfile: Drone.DockerFile
     environment:
-      IP: 10.0.2.15
+      IP: 192.168.23.1
       PORT_ENGINE: 3001
       PORT: 3002
       PORT_KAFKA: 29092
@@ -97,7 +97,7 @@ services:
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://10.0.2.15:29092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://192.168.23.1:29092
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
