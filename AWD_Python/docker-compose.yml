@@ -7,12 +7,29 @@ services:
     ports:
       - "3001:3001"
     container_name: engine
-    command: sleep infinity | sh -c "python3 -m venv /app/venv && . /app/venv/bin/activate && pip install kafka-python pymongo colorama prettytable"
+    command: sleep infinity
     environment:
       IP_BBDD: 10.0.2.15
       IP_SERVER_GESTOR: 10.0.2.15
       IP_ENGINE: 0.0.0.0
       PUERTO_SERVER_GESTOR: 29092
+      PUERTO_ESCUCHA: 3001
+      PUERTO_BBDD: 27017
+      TOPIC_CONSUMIDOR: "drones_engine"
+      TOPIC_PRODUCTOR: "engine_drones"
+
+  api_engine:
+    build:
+      context: .
+      dockerfile: Engine.DockerFile
+    ports:
+      - "5000:5000"
+    container_name: engine
+    command: python API_Engine.py
+    environment:
+      IP_BBDD: 10.0.2.15
+      IP_SERVER_GESTOR: 10.0.2.15
+      IP_ENGINE: 0.0.0.0
       PUERTO_ESCUCHA: 3001
       PUERTO_BBDD: 27017
       TOPIC_CONSUMIDOR: "drones_engine"
@@ -31,6 +48,19 @@ services:
       PORT_REGISTRY: 3002
     container_name: registry
 
+  api_registry:
+    build:
+      context: .
+      dockerfile: Registry.DockerFile
+    ports:
+      - "5001:5001"
+    command: python API_Registry.py
+    environment:
+      IP: 0.0.0.0
+      PORT_BBDD: 27017
+      PORT: 5001
+    container_name: registry
+
   mongo:
     image: mongo:4.4
     ports:
@@ -46,7 +76,7 @@ services:
       PORT_ENGINE: 3001
       PORT: 3002
       PORT_KAFKA: 29092
-    command: sleep infinity
+    command: python AD_Drone.py
     container_name: dron
   
   zookeeper:
