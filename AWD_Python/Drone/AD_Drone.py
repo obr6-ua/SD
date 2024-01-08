@@ -16,7 +16,7 @@ FORMAT = 'utf-8'
 HEADER = 4096
 KTAMANYO = 20
 API=os.getenv("API")
-URL = "http://10.0.2.15:5000"
+URL = "http://192.168.23.1:5001"
 
 def escribir_log(mensaje, nombre_archivo="LogDrone"):
     with open(f"{nombre_archivo}.log", "a") as archivo_log:
@@ -64,6 +64,7 @@ class AD_Drone:
         respuesta = requests.post(url_registry + '/register', json={'id': self.id})
         if respuesta.status_code == 200:
             self.token = respuesta.json().get('token')
+            print(self.token)
         else:
             return respuesta.status_code
 
@@ -129,7 +130,7 @@ class AD_Drone:
         
         print("Mensaje recibido del Engine", flush=True)
         if recibido != '':
-            print(recibido)
+            print("recibido = ",recibido)
             recibido = recibido.split(':')
 
             self.finalx = int(recibido[0])

@@ -1,8 +1,0 @@
-# Utiliza una imagen de Java para compilar la aplicación
-FROM openjdk:11
-
-# Copia el código fuente de la aplicación al contenedor
-COPY . /app
-
-# Establece el directorio de trabajo en /app
-WORKDIR /app

@@ -1,14 +1,14 @@
 from pymongo import MongoClient
 from random import randint
+from threading import Thread
+from datetime import datetime, timedelta
 
 from flask import Flask, jsonify
 import hashlib
 import socket , ssl
-import threading
 import sys
 import os
 #Practica 3
-import threading
 CERT_FILE = 'mi_certificado.pem'
 KEY_FILE = 'mi_clave_privada.pem'
 FORMAT = 'utf-8'
@@ -77,7 +77,7 @@ def atenderPeticion(conn, addr):
         info = conn.recv(HEADER).decode(FORMAT)  # Decodificar el mensaje recibido
         info.split(':')
         
-        client = MongoClient("mongodb://10.0.2.15:27017")
+        client = MongoClient("mongodb://192.168.23.1:27017")
     
         db = client['drones_db']
         
@@ -113,35 +113,12 @@ def iniciarSocketServer():
         conn, addr = socketReg.accept()
         print(f"Nueva conexión: {addr}")
 
-        thread = threading.Thread(target=atenderPeticion, args=(conn, addr))
+        thread = Thread(target=atenderPeticion, args=(conn, addr))
         thread.start()
-
-
-@app.route('/register', methods=['POST'])
-def registrarApi():
-    data = request.json
-    drone_id = data.get('id')
-    # Ciframos el id y lo usamos como token para mandar
-    token = hashlib.sha256(drone_id.encode()).hexdigest()
-    hora = datetime.now() + timedelta(seconds=20)
-    #Dron
-    nuevo_dron = {"id": drone_id, "alias" : drone_id, "token" : token, "hora" : hora}
-    #Inserto el nuevo dron en db
-    client = MongoClient("mongodb://10.0.2.15:27017")
-    db = client['drones_db']
-    coleccion = db['drones']
-    coleccion.insert_one(nuevo_dron)
-
-    return jsonify({"message": "Dron registrado con éxito", "token": token}), 200
-
-
-def iniciar_flask_server():
-    app.run(debug=True, host='0.0.0.0', port=5000)
 
 def main():
+    iniciarSocketServer()
 
-        thread = threading.Thread(target=iniciarSocketServer)
-        thread.start()
-    
 main()
+
 

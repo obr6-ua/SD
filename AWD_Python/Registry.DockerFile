@@ -15,7 +15,7 @@ ENV PATH="/app/venv/bin:$PATH"
 
 # Instalar paquetes en el entorno virtual
 # Aquí, usamos directamente el pip del entorno virtual
-RUN pip install pymongo colorama flask
+RUN pip install pymongo colorama flask flask-cors
 
 ADD Registry .
 ADD Certificado .

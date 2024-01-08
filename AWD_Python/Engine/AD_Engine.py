@@ -102,7 +102,7 @@ class AD_Engine:
         # Aquí asumimos que tienes una colección llamada 'mapa' en tu base de datos
         self.bd.mapa.update_one({'_id': 'ID_MAPA'}, {'$set': {'mapa': mapa_dict}}, upsert=True)
     
-    def manageDrone(self, conn, addr, figuraActual):
+    def manageDrone(self, conn, addr, figuraActual, i):
         escribir_log(f"Nuevo dron {addr} conectado.")
         # Mensaje del dron a conectar
         token = conn.recv(4096).decode(FORMAT)
@@ -111,10 +111,12 @@ class AD_Engine:
         
         # Buscamos ese token en la bbdd
         registro = self.coleccion1.find_one({"token": token})
-        if registro['hora'] > datetime.now():
-            escribir_log(f"Token expirado {addr}.")
-            self.coleccion1.delete_one({"id": token})
-            conn.close()
+        if i == 1:
+            if registro['hora'] < datetime.now():
+                escribir_log(f"Token expirado {addr}.")
+                self.coleccion1.delete_one({"id": token})
+                registro = None
+                print(f"Token expirado {addr}.")
 
         #Si existe pillamos los datos del dron
         if registro:
@@ -140,13 +142,14 @@ class AD_Engine:
             # Me guardo el id del dron que ha logrado registrarse correctamente
             with self.lock:
                 self.idsValidas.append(id)
+            print(f'Dron {id} validado')
             conn.close()
         else:
             print("No se encontró ningún registro para el dron con ID y token especificados")
             print("FIN")
             conn.close()
 
-    def conectarDrones(self, figuraActual):
+    def conectarDrones(self, figuraActual, i):
         self.sckServidor = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.sckServidor.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.sckServidor.bind((self.ipEngine, int(self.puerto_escucha)))
@@ -161,7 +164,7 @@ class AD_Engine:
                 print("self.idsValidas " + str(len(self.idsValidas)))
 
                 conn, addr = self.sckServidor.accept()
-                self.manageDrone(conn, addr, figuraActual)
+                self.manageDrone(conn, addr, figuraActual, i)
                 #time.sleep(0.3)
         except Exception as e:
             print(f"Error: {e}")
@@ -238,6 +241,8 @@ class AD_Engine:
         # Mostrar mapa
         self.printMap()
         time.sleep(1)
+        
+        i = 1
 
         # Recibir mensajes kafka
         for figura in self.figuras:
@@ -245,7 +250,8 @@ class AD_Engine:
                 self.dronesNecesarios = len(figura["Drones"])
                 figuraActual = figura
                 # Conectar nuevos drones
-                self.conectarDrones(figuraActual)
+                self.conectarDrones(figuraActual, i)
+                print("Drones conectados")
                 self.actualizarMapaDB()
                 
                 with open('ciudad.txt', 'r') as archivo:
@@ -268,6 +274,7 @@ class AD_Engine:
                 self.figura(temperatura, consumer, producer)             
                 
                 figura["Completada"] = True
+                i += 1
                 
                 #Reseteamos los campos necesarios
                 self.mapa = [["" for _ in range(KTAMANYO)] for _ in range(KTAMANYO)]
@@ -380,4 +387,4 @@ def main():
 
 if __name__ == "__main__":
     main()
-    app.run(debug=True)
+    #app.run(debug=True)
