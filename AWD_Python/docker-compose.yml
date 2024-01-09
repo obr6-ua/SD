@@ -18,7 +18,7 @@ services:
       TOPIC_CONSUMIDOR: "drones_engine"
       TOPIC_PRODUCTOR: "engine_drones"
     volumes:
-      - ./logs:/logs
+      - ./logs:/app/logs
 
   api_engine:
     build:
