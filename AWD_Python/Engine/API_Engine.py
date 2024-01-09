@@ -1,12 +1,18 @@
 from flask import Flask, jsonify
 from flask_cors import CORS, cross_origin
+from pymongo import MongoClient
+import os
+
+conexionBBDD = "mongodb://" + os.getenv('IP_BBDD') + ":" + os.getenv('PUERTO_BBDD')
 
 app = Flask(__name__)
 CORS(app)
 
-def leer_mapa_desde_db(self):
+def leer_mapa_desde_db():
+    cliente = MongoClient(conexionBBDD) #self.conexionBBDD
+    bd = cliente['drones_db']
     try:
-        documento_mapa = self.bd.mapa.find_one({'_id': 'ID_MAPA'})
+        documento_mapa = bd.mapa.find_one({'_id': 'ID_MAPA'})
         if documento_mapa and 'mapa' in documento_mapa:
             return documento_mapa['mapa']
         else:

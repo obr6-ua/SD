@@ -1,16 +1,16 @@
 <template>
   <div id="app">
-    <Mapa Drones/>
+    <GameBoard/>
   </div>
 </template>
 
 <script>
-import Board from './/components/Board.vue';
+import GameBoard from './/components/GameBoard.vue';
 
 export default {
   name: 'App',
   components: {
-    Board
+    GameBoard
   }
 }
 </script>

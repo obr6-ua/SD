@@ -94,8 +94,14 @@ class AD_Engine:
         for i in range(KTAMANYO):
             for j in range(KTAMANYO):
                 key = f"{i},{j}"
-                mapa_dict[key] = self.mapa[i][j]
+                if "\033[91m" in self.mapa[i][j]:
+                    mapa_dict[key] = {'id': self.mapa[i][j].replace("\033[91m", "").replace("\033[0m", ""), 'color': 'red'}
+                elif "\033[92m" in self.mapa[i][j]:
+                    mapa_dict[key] = {'id': self.mapa[i][j].replace("\033[92m", "").replace("\033[0m", ""), 'color': 'green'}
+                else:
+                    mapa_dict[key] = self.mapa[i][j]
         return mapa_dict
+
         
     def actualizarMapaDB(self):
         mapa_dict = self.MapaADiccionario()
