@@ -22,7 +22,7 @@ KTAMANYO = 20
 FORMAT = 'utf-8'
 app = Flask(__name__)
 
-def escribir_log(mensaje, nombre_archivo="LogEngine"):
+def escribir_log(mensaje, nombre_archivo="logs/LogEngine"):
     with open(f"{nombre_archivo}.log", "a") as archivo_log:
         archivo_log.write(mensaje + "\n")
         

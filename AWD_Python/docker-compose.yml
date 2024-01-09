@@ -17,6 +17,8 @@ services:
       PUERTO_BBDD: 27017
       TOPIC_CONSUMIDOR: "drones_engine"
       TOPIC_PRODUCTOR: "engine_drones"
+    volumes:
+      - ./logs:/logs
 
   api_engine:
     build:
