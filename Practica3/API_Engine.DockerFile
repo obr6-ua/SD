@@ -8,5 +8,5 @@ WORKDIR /
 COPY . .
 
 # Instalar dependencias
-RUN pip install --no-cache-dir requests pymongo cryptography kafka-python prettytable
+RUN pip install --no-cache-dir flask flask-cors
 

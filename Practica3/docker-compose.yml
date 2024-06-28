@@ -9,14 +9,15 @@ services:
     container_name: engine
     command: sleep infinity
     environment:
-      IP_BBDD: 192.168.23.1
-      IP_SERVER_GESTOR: 192.168.23.1
+      IP_BBDD: 172.27.178.241
+      IP_SERVER_GESTOR: 172.27.178.241
       IP_ENGINE: 0.0.0.0
       PUERTO_SERVER_GESTOR: 29092
       PUERTO_ESCUCHA: 3001
       PUERTO_BBDD: 27017
       TOPIC_CONSUMIDOR: "drones_engine"
       TOPIC_PRODUCTOR: "engine_drones"
+      CLAVE_ENCRIPTADA: "uErhONBMnC59GDVi71D3c3FySlDVbjokNCOkcXuIWWo="
       
   registry:
     build:
@@ -24,11 +25,15 @@ services:
       dockerfile: Registry.DockerFile
     ports:
       - "3002:3002"
+      - "3003:3003"
     command: python AD_Registry.py
     environment:
       IP_REGISTRY: 0.0.0.0
+      IP_BBDD: 172.27.178.241
       PORT_BBDD: 27017
       PORT_REGISTRY: 3002
+      PORT_API_REGISTRY: 3003
+      CLAVE_ENCRIPTADA: "uErhONBMnC59GDVi71D3c3FySlDVbjokNCOkcXuIWWo="
     container_name: registry
 
   mongo:
@@ -40,19 +45,22 @@ services:
   drone:
     build:
       context: .
-      dockerfile: Drone2.DockerFile
+      dockerfile: Drone.DockerFile
     environment:
-      IP: 192.168.23.1
+      IP_ENGINE: 172.27.178.241
+      IP_REGISTRY: 172.27.178.241
+      PORT_ENGINE_API: 5000
       PORT_ENGINE: 3001
-      PORT: 3002
+      PORT_REGISTRY_API: 3003
+      PORT_REGISTRY: 3002
       PORT_KAFKA: 29092
       CLAVE_ENCRIPTADA: "uErhONBMnC59GDVi71D3c3FySlDVbjokNCOkcXuIWWo="
 
-    command: python AD_Drone.py
+    command: python3 /Drone/AD_Drone.py
     container_name: dron
   
   zookeeper:
-    image: confluentinc/cp-zookeeper:latest
+    image: confluentinc/cp-zookeeper:7.1.8
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
@@ -61,7 +69,7 @@ services:
     container_name: zookeeper
     
   kafka:
-    image: confluentinc/cp-kafka:latest
+    image: confluentinc/cp-kafka:7.1.8
     depends_on:
       - zookeeper
     ports:
@@ -69,11 +77,32 @@ services:
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://192.168.23.1:29092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://172.27.178.241:29092
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
     container_name: kafka
     
-
-
+  api_engine:
+    build:
+      context: .
+      dockerfile: API_Engine.DockerFile
+    ports:
+      - "5000:5000"
+    container_name: api_engine
+    command: python3 /Engine/API_Engine.py
+    environment:
+      IP_API_ENGINE: 0.0.0.0
+      PORT_API_ENGINE: 5000
+      CLAVE_ENCRIPTADA: "uErhONBMnC59GDVi71D3c3FySlDVbjokNCOkcXuIWWo="
+    
+  front:
+    build:
+      context: .
+      dockerfile: Front.DockerFile
+    ports:
+      - "8080:8080"
+      - "8081:8081"
+    container_name: front
+    environment:
+      NODE_ENV: development
